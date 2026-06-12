@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import type {
   AppSession, WizardStep, PlanningInput, ContentIdea, HookOption,
-  ScriptDraft, ImagePrompt, SafetyReview, VideoPromptPackage,
-  UploadCopyPackage, UserApiSettings,
+  ScriptSplit, SlideScene, VeoCoreClip, UploadCopyPackage, UserApiSettings,
 } from '../types';
 
 // ─── Initial State ─────────────────────────────────────────────────────────────
@@ -13,18 +12,13 @@ const initialSession: AppSession = {
   selectedIdea: null,
   hooks: [],
   selectedHook: null,
-  script: null,
-  imagePrompts: [],
-  safetyReview: null,
-  videoPackage: null,
-  previewApproved: false,
+  scriptSplit: null,
   uploadCopy: null,
   currentStep: 'planning',
 };
 
 const defaultSettings: UserApiSettings = {
   geminiApiKey: '',
-  flowApiKey: '',
   useMockMode: true,
 };
 
@@ -42,52 +36,42 @@ interface AppContextType {
   selectIdea: (idea: ContentIdea) => void;
   setHooks: (hooks: HookOption[]) => void;
   selectHook: (hook: HookOption) => void;
-  setScript: (script: ScriptDraft) => void;
-  setImagePrompts: (prompts: ImagePrompt[]) => void;
-  setSafetyReview: (review: SafetyReview) => void;
-  setVideoPackage: (pkg: VideoPromptPackage) => void;
-  approvePreview: () => void;
+  setScriptSplit: (split: ScriptSplit) => void;
+  updateVeoClip: (clip: VeoCoreClip) => void;
+  updateSlideScene: (scene: SlideScene) => void;
   setUploadCopy: (copy: UploadCopyPackage) => void;
   resetSession: () => void;
 }
 
-// ─── Context Creation ──────────────────────────────────────────────────────────
+// ─── Provider ─────────────────────────────────────────────────────────────────
 
 const AppContext = createContext<AppContextType | null>(null);
 
 function loadSettings(): UserApiSettings {
   try {
-    const raw = sessionStorage.getItem('pss_settings');
+    const raw = sessionStorage.getItem('pss2_settings');
     if (raw) return JSON.parse(raw) as UserApiSettings;
   } catch { /* ignore */ }
   return defaultSettings;
 }
 
 function persistSettings(s: UserApiSettings) {
-  try {
-    const safe = { ...s };
-    sessionStorage.setItem('pss_settings', JSON.stringify(safe));
-  } catch { /* ignore */ }
+  try { sessionStorage.setItem('pss2_settings', JSON.stringify(s)); } catch { /* ignore */ }
 }
 
-function getSystemDark() {
+function getInitialDark() {
   try {
-    return (
-      localStorage.getItem('pss_dark') === 'true' ||
-      window.matchMedia('(prefers-color-scheme: dark)').matches
-    );
-  } catch {
-    return false;
-  }
+    if (localStorage.getItem('pss_dark') === 'true') return true;
+    if (localStorage.getItem('pss_dark') === 'false') return false;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  } catch { return false; }
 }
-
-// ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<AppSession>(initialSession);
   const [settings, setSettingsState] = useState<UserApiSettings>(loadSettings);
   const [isDark, setIsDark] = useState<boolean>(() => {
-    const d = getSystemDark();
+    const d = getInitialDark();
     if (d) document.documentElement.classList.add('dark');
     return d;
   });
@@ -124,35 +108,39 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const selectHook = useCallback((selectedHook: HookOption) =>
     setSession(s => ({ ...s, selectedHook })), []);
 
-  const setScript = useCallback((script: ScriptDraft) =>
-    setSession(s => ({ ...s, script })), []);
+  const setScriptSplit = useCallback((scriptSplit: ScriptSplit) =>
+    setSession(s => ({ ...s, scriptSplit })), []);
 
-  const setImagePrompts = useCallback((imagePrompts: ImagePrompt[]) =>
-    setSession(s => ({ ...s, imagePrompts })), []);
+  const updateVeoClip = useCallback((clip: VeoCoreClip) =>
+    setSession(s => s.scriptSplit
+      ? { ...s, scriptSplit: { ...s.scriptSplit, veo_core_clip: clip } }
+      : s
+    ), []);
 
-  const setSafetyReview = useCallback((safetyReview: SafetyReview) =>
-    setSession(s => ({ ...s, safetyReview })), []);
-
-  const setVideoPackage = useCallback((videoPackage: VideoPromptPackage) =>
-    setSession(s => ({ ...s, videoPackage })), []);
-
-  const approvePreview = useCallback(() =>
-    setSession(s => ({ ...s, previewApproved: true })), []);
+  const updateSlideScene = useCallback((scene: SlideScene) =>
+    setSession(s => s.scriptSplit ? {
+      ...s,
+      scriptSplit: {
+        ...s.scriptSplit,
+        slide_scenes: s.scriptSplit.slide_scenes.map(sc =>
+          sc.scene_id === scene.scene_id ? scene : sc
+        ),
+      },
+    } : s), []);
 
   const setUploadCopy = useCallback((uploadCopy: UploadCopyPackage) =>
     setSession(s => ({ ...s, uploadCopy })), []);
 
-  const resetSession = useCallback(() =>
-    setSession(initialSession), []);
+  const resetSession = useCallback(() => setSession(initialSession), []);
 
   return (
     <AppContext.Provider value={{
       session, settings, isDark,
       setSettings, toggleDark, setStep,
       updatePlanning, setIdeas, selectIdea,
-      setHooks, selectHook, setScript,
-      setImagePrompts, setSafetyReview, setVideoPackage,
-      approvePreview, setUploadCopy, resetSession,
+      setHooks, selectHook, setScriptSplit,
+      updateVeoClip, updateSlideScene,
+      setUploadCopy, resetSession,
     }}>
       {children}
     </AppContext.Provider>

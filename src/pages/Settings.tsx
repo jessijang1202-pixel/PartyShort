@@ -15,7 +15,6 @@ export default function Settings() {
 
   const [form, setForm] = useState<UserApiSettings>({ ...settings });
   const [showGemini, setShowGemini] = useState(false);
-  const [showFlow, setShowFlow] = useState(false);
   const [geminiStatus, setGeminiStatus] = useState<ValidStatus>('idle');
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
@@ -41,10 +40,6 @@ export default function Settings() {
   function clearGemini() {
     setForm(f => ({ ...f, geminiApiKey: '' }));
     setGeminiStatus('idle');
-  }
-
-  function clearFlow() {
-    setForm(f => ({ ...f, flowApiKey: '' }));
   }
 
   const StatusIcon = () => {
@@ -91,7 +86,7 @@ export default function Settings() {
         </div>
 
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-          아이디어 생성, 훅, 대본, 이미지 분석, 안전 검토, 업로드 카피 생성에 사용됩니다.
+          아이디어 생성, 훅, 대본 분리, 이미지 생성 (Veo/Imagen), 업로드 카피에 사용됩니다.
         </p>
 
         <div className="relative">
@@ -145,37 +140,16 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Flow API Key */}
-      <div className="wizard-card mb-4">
-        <div className="flex items-center gap-2 mb-4">
-          <Key className="w-5 h-5 text-purple-500" />
-          <h2 className="font-semibold text-slate-900 dark:text-white">Google Flow API 키</h2>
-          <span className="ml-auto text-xs bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full">
-            향후 지원
-          </span>
+      {/* Flow — disabled stub notice */}
+      <div className="wizard-card mb-4 border-dashed border-2 border-slate-200 dark:border-slate-700 opacity-60">
+        <div className="flex items-center gap-2 mb-2">
+          <Key className="w-5 h-5 text-purple-400" />
+          <h2 className="font-semibold text-slate-700 dark:text-slate-400">Google Flow 연동</h2>
+          <span className="ml-auto text-xs bg-slate-100 dark:bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full">준비 중</span>
         </div>
-
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-          Google Flow 직접 API 연동은 현재 준비 중입니다. 현재는 프롬프트 패키지를 생성하여 Flow UI에서 수동으로 사용할 수 있습니다.
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          이 버전에서는 Flow 연동을 사용하지 않습니다. 향후 업데이트에서 지원될 예정입니다.
         </p>
-
-        <div className="relative">
-          <input
-            type={showFlow ? 'text' : 'password'}
-            className="input-base pr-10 opacity-60"
-            placeholder="준비 중..."
-            value={form.flowApiKey}
-            onChange={e => setForm(f => ({ ...f, flowApiKey: e.target.value }))}
-            disabled
-          />
-          <button
-            type="button"
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400"
-            onClick={() => setShowFlow(s => !s)}
-          >
-            {showFlow ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-          </button>
-        </div>
       </div>
 
       {/* Mock mode */}

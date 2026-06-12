@@ -1,131 +1,83 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import type {
-  PlanningInput, ContentIdea, HookOption, ScriptDraft,
-  ImagePrompt, SafetyReview, VideoPromptPackage, UploadCopyPackage,
-} from '../types';
+import type { PlanningInput, ContentIdea, HookOption, ScriptSplit, UploadCopyPackage } from '../types';
 import {
-  buildIdeaPrompt, buildHookPrompt, buildScriptPrompt,
-  buildImageAnalysisPrompt, buildImagePromptGeneration,
-  buildSafetyPrompt, buildVideoPromptPackage,
-  buildUploadCopyPrompt,
+  buildIdeaPrompt, buildHookPrompt, buildScriptSplitPrompt,
+  buildImageAnalysisPrompt, buildUploadCopyPrompt,
 } from '../prompts';
 
 const MODEL_ID = 'gemini-2.0-flash-exp';
 
-function getClient(apiKey: string) {
-  return new GoogleGenerativeAI(apiKey);
-}
-
 function getModel(apiKey: string) {
-  return getClient(apiKey).getGenerativeModel({ model: MODEL_ID });
+  return new GoogleGenerativeAI(apiKey).getGenerativeModel({ model: MODEL_ID });
 }
 
 async function generateJSON<T>(apiKey: string, prompt: string): Promise<T> {
-  const model = getModel(apiKey);
-  const result = await model.generateContent(prompt);
+  const result = await getModel(apiKey).generateContent(prompt);
   const text = result.response.text();
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('응답에서 JSON을 찾을 수 없습니다.');
-  return JSON.parse(jsonMatch[0]) as T;
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('응답에서 JSON을 찾을 수 없습니다.');
+  return JSON.parse(match[0]) as T;
 }
 
-// ─── API Functions ─────────────────────────────────────────────────────────────
+// ─── Public API ────────────────────────────────────────────────────────────────
 
-export async function generateIdeas(
-  apiKey: string,
-  planning: PlanningInput,
-): Promise<ContentIdea[]> {
-  const prompt = buildIdeaPrompt(planning);
-  const data = await generateJSON<{ ideas: ContentIdea[] }>(apiKey, prompt);
+export async function generateIdeas(apiKey: string, p: PlanningInput): Promise<ContentIdea[]> {
+  const data = await generateJSON<{ ideas: ContentIdea[] }>(apiKey, buildIdeaPrompt(p));
   return data.ideas;
 }
 
 export async function generateHooks(
-  apiKey: string,
-  planning: PlanningInput,
-  idea: ContentIdea,
+  apiKey: string, p: PlanningInput, idea: ContentIdea,
 ): Promise<HookOption[]> {
-  const prompt = buildHookPrompt(planning, idea);
-  const data = await generateJSON<{ hooks: HookOption[] }>(apiKey, prompt);
+  const data = await generateJSON<{ hooks: HookOption[] }>(apiKey, buildHookPrompt(p, idea));
   return data.hooks;
 }
 
-export async function generateScript(
-  apiKey: string,
-  planning: PlanningInput,
-  idea: ContentIdea,
-  hook: HookOption,
-): Promise<ScriptDraft> {
-  const prompt = buildScriptPrompt(planning, idea, hook);
-  return generateJSON<ScriptDraft>(apiKey, prompt);
+export async function generateScriptSplit(
+  apiKey: string, p: PlanningInput, idea: ContentIdea, hook: HookOption,
+): Promise<ScriptSplit> {
+  const raw = await generateJSON<any>(apiKey, buildScriptSplitPrompt(p, idea, hook));
+  return {
+    full_script: raw.full_script ?? '',
+    structure: raw.structure ?? { problem: '', empathy: '', solution: '', action: '' },
+    veo_core_clip: {
+      text: raw.veo_core_clip?.text ?? '',
+      prompt: raw.veo_core_clip?.prompt ?? '',
+      duration: raw.veo_core_clip?.duration ?? 9,
+      status: 'idle',
+    },
+    slide_scenes: (raw.slide_scenes ?? []).map((s: any) => ({
+      scene_id: s.scene_id ?? `slide_${Math.random().toString(36).slice(2)}`,
+      scene_title: s.scene_title ?? '',
+      on_screen_text: s.on_screen_text ?? '',
+      narration_text: s.narration_text ?? '',
+      visual_description: s.visual_description ?? '',
+      duration_seconds: s.duration_seconds ?? 7,
+      imageStatus: 'idle' as const,
+    })),
+  };
 }
 
-export async function analyzeImage(
-  apiKey: string,
-  file: File,
-): Promise<string> {
+export async function analyzeImage(apiKey: string, file: File): Promise<string> {
   const model = getModel(apiKey);
-  const prompt = buildImageAnalysisPrompt();
-
   const bytes = await file.arrayBuffer();
   const base64 = btoa(String.fromCharCode(...new Uint8Array(bytes)));
-
   const result = await model.generateContent([
-    prompt,
+    buildImageAnalysisPrompt(),
     { inlineData: { data: base64, mimeType: file.type } },
   ]);
   return result.response.text();
 }
 
-export async function generateImagePrompts(
-  apiKey: string,
-  planning: PlanningInput,
-  idea: ContentIdea,
-  script: ScriptDraft,
-): Promise<ImagePrompt[]> {
-  const prompt = buildImagePromptGeneration(planning, idea, script);
-  const data = await generateJSON<{ imagePrompts: ImagePrompt[] }>(apiKey, prompt);
-  return data.imagePrompts;
-}
-
-export async function runSafetyReview(
-  apiKey: string,
-  script: ScriptDraft,
-  planning: PlanningInput,
-): Promise<SafetyReview> {
-  const prompt = buildSafetyPrompt(script, planning);
-  return generateJSON<SafetyReview>(apiKey, prompt);
-}
-
-export async function generateVideoPromptPackage(
-  apiKey: string,
-  planning: PlanningInput,
-  idea: ContentIdea,
-  hook: HookOption,
-  script: ScriptDraft,
-  hasImages: boolean,
-): Promise<VideoPromptPackage> {
-  const prompt = buildVideoPromptPackage(planning, idea, hook, script, hasImages);
-  const data = await generateJSON<VideoPromptPackage>(apiKey, prompt);
-  return { ...data, status: 'idle' };
-}
-
 export async function generateUploadCopy(
-  apiKey: string,
-  planning: PlanningInput,
-  idea: ContentIdea,
-  hook: HookOption,
+  apiKey: string, p: PlanningInput, idea: ContentIdea, hook: HookOption,
 ): Promise<UploadCopyPackage> {
-  const prompt = buildUploadCopyPrompt(planning, idea, hook);
-  return generateJSON<UploadCopyPackage>(apiKey, prompt);
+  return generateJSON<UploadCopyPackage>(apiKey, buildUploadCopyPrompt(p, idea, hook));
 }
-
-// ─── API Key Validation ────────────────────────────────────────────────────────
 
 export async function validateGeminiKey(apiKey: string): Promise<boolean> {
   try {
-    const model = getModel(apiKey);
-    await model.generateContent('안녕하세요. API 연결 테스트입니다. 한 단어로만 응답하세요.');
+    await getModel(apiKey).generateContent('테스트. 한 단어로만 응답하세요: 확인');
     return true;
   } catch {
     return false;
