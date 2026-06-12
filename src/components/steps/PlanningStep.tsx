@@ -1,20 +1,20 @@
-import { useState, useRef } from 'react';
-import { Upload, X, Sparkles, ChevronRight, Video, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { Sparkles, ChevronRight, Camera, Video } from 'lucide-react';
 import clsx from 'clsx';
 import { useApp } from '../../store/AppContext';
-import { CATEGORIES, TONE_OPTIONS, type PlanningInput, type VisualAsset, type Category } from '../../types';
+import { CATEGORIES, TONE_OPTIONS, type PlanningInput, type Category } from '../../types';
 import Button from '../ui/Button';
 import Alert from '../ui/Alert';
-import { analyzeImage } from '../../services/gemini.service';
-import { mockAnalyzeImage, DEMO_PLANNING_AUTOFILL } from '../../services/mock.service';
+import { DEMO_PLANNING_AUTOFILL } from '../../services/mock.service';
 
 export default function PlanningStep() {
-  const { session, settings, updatePlanning, setStep } = useApp();
+  const { session, updatePlanning, setStep } = useApp();
 
   const initial: PlanningInput = session.planning ?? {
     identity: '', category: '조국대표님' as Category, topic: '',
     mainPoints: ['', '', ''] as [string, string, string],
-    uploadedAssets: [], bannedExpressions: '', tone: '',
+    hasPhotos: false, hasVideos: false,
+    bannedExpressions: '', tone: '',
   };
 
   const [form, setForm] = useState<PlanningInput>(initial);
@@ -22,9 +22,7 @@ export default function PlanningStep() {
     initial.tone ? initial.tone.split(', ').filter(Boolean) : [],
   );
   const [customTone, setCustomTone] = useState('');
-  const [analyzingIds, setAnalyzingIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const set = <K extends keyof PlanningInput>(key: K, val: PlanningInput[K]) =>
     setForm(f => ({ ...f, [key]: val }));
@@ -37,35 +35,6 @@ export default function PlanningStep() {
 
   const toggleTone = (t: string) =>
     setSelectedTones(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
-
-  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
-    if (!files.length) return;
-    const newAssets: VisualAsset[] = files.map(f => ({
-      id: `a_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-      type: f.type.startsWith('image/') ? 'image' : 'video',
-      file: f, url: URL.createObjectURL(f), name: f.name,
-    }));
-    set('uploadedAssets', [...form.uploadedAssets, ...newAssets]);
-    for (const asset of newAssets) {
-      if (asset.type !== 'image') continue;
-      setAnalyzingIds(prev => new Set(prev).add(asset.id));
-      try {
-        const summary = settings.useMockMode || !settings.geminiApiKey
-          ? await mockAnalyzeImage(asset.file!)
-          : await analyzeImage(settings.geminiApiKey, asset.file!);
-        setForm(f => ({
-          ...f,
-          uploadedAssets: f.uploadedAssets.map(a =>
-            a.id === asset.id ? { ...a, aiSummary: summary, editedSummary: summary } : a,
-          ),
-        }));
-      } catch { /* silent */ } finally {
-        setAnalyzingIds(prev => { const s = new Set(prev); s.delete(asset.id); return s; });
-      }
-    }
-    if (fileRef.current) fileRef.current.value = '';
-  }
 
   function validate() {
     if (!form.identity.trim()) return '내 소개를 입력해주세요.';
@@ -86,7 +55,7 @@ export default function PlanningStep() {
   }
 
   function autoFill() {
-    setForm({ ...DEMO_PLANNING_AUTOFILL, uploadedAssets: [] });
+    setForm(DEMO_PLANNING_AUTOFILL);
     setSelectedTones(['따뜻한', '진중한']);
     setCustomTone('');
     setError('');
@@ -111,7 +80,8 @@ export default function PlanningStep() {
       <div className="wizard-card space-y-2">
         <label className="section-label">내 소개 *</label>
         <p className="text-xs text-slate-500 dark:text-slate-400">나는 누구인가요?</p>
-        <input className="input-base" placeholder="예: 조국혁신당 당원, 청년 지지자" value={form.identity} onChange={e => set('identity', e.target.value)} />
+        <input className="input-base" placeholder="예: 조국혁신당 당원, 청년 지지자"
+          value={form.identity} onChange={e => set('identity', e.target.value)} />
       </div>
 
       {/* Category */}
@@ -134,7 +104,8 @@ export default function PlanningStep() {
       {/* Topic */}
       <div className="wizard-card space-y-2">
         <label className="section-label">주제 *</label>
-        <input className="input-base" placeholder="예: 조국님 수고하셨습니다. 재선거 낙선 이후 이야기" value={form.topic} onChange={e => set('topic', e.target.value)} />
+        <input className="input-base" placeholder="예: 조국님 수고하셨습니다. 재선거 낙선 이후 이야기"
+          value={form.topic} onChange={e => set('topic', e.target.value)} />
       </div>
 
       {/* Main Points */}
@@ -151,41 +122,65 @@ export default function PlanningStep() {
         ))}
       </div>
 
-      {/* File Upload */}
+      {/* Media assets checkbox */}
       <div className="wizard-card space-y-3">
-        <label className="section-label">사진 또는 영상 업로드 (선택)</label>
-        <p className="text-xs text-slate-500 dark:text-slate-400">업로드 시 AI가 내용을 분석하여 씬 구성에 활용합니다.</p>
-        <input ref={fileRef} type="file" multiple accept="image/*,video/*" onChange={handleFileUpload} className="hidden" />
-        <button onClick={() => fileRef.current?.click()}
-          className="w-full border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl py-7 flex flex-col items-center gap-2 hover:border-blue-400 transition-colors">
-          <Upload className="w-6 h-6 text-slate-400" />
-          <span className="text-sm text-slate-500 dark:text-slate-400">클릭하여 파일 선택</span>
-          <span className="text-xs text-slate-400">이미지 또는 동영상 (세로 비율 권장)</span>
-        </button>
-        {form.uploadedAssets.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {form.uploadedAssets.map(asset => (
-              <div key={asset.id} className="relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800">
-                {asset.type === 'image'
-                  ? <img src={asset.url} alt={asset.name} className="w-full h-24 object-cover" />
-                  : <div className="w-full h-24 flex items-center justify-center"><Video className="w-8 h-8 text-slate-400" /></div>
-                }
-                <button onClick={() => set('uploadedAssets', form.uploadedAssets.filter(a => a.id !== asset.id))}
-                  className="absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-white hover:bg-black/80">
-                  <X className="w-3 h-3" />
-                </button>
-                <div className="p-2">
-                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{asset.name}</p>
-                  {analyzingIds.has(asset.id)
-                    ? <div className="flex items-center gap-1 mt-1"><Loader2 className="w-3 h-3 animate-spin text-blue-500" /><span className="text-xs text-blue-500">분석 중...</span></div>
-                    : asset.editedSummary
-                      ? <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 line-clamp-2">✓ {asset.editedSummary}</p>
-                      : null
-                  }
-                </div>
-              </div>
-            ))}
-          </div>
+        <label className="section-label">보유 미디어 자산</label>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          사용할 수 있는 사진이나 동영상이 있나요? 슬라이드 씬 단계에서 직접 업로드할 수 있습니다.
+        </p>
+        <div className="space-y-2">
+          <label className={clsx(
+            'flex items-center gap-3 rounded-xl border-2 px-4 py-3 cursor-pointer transition-all',
+            form.hasPhotos
+              ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
+              : 'border-slate-200 dark:border-slate-700 hover:border-blue-200',
+          )}>
+            <input type="checkbox" className="sr-only" checked={form.hasPhotos}
+              onChange={e => set('hasPhotos', e.target.checked)} />
+            <div className={clsx(
+              'w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all',
+              form.hasPhotos ? 'bg-blue-600 border-blue-600' : 'border-slate-300 dark:border-slate-600',
+            )}>
+              {form.hasPhotos && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+            </div>
+            <Camera className={clsx('w-4 h-4 shrink-0', form.hasPhotos ? 'text-blue-600' : 'text-slate-400')} />
+            <div>
+              <p className={clsx('text-sm font-medium', form.hasPhotos ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-300')}>
+                사진이 있어요
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">슬라이드 씬에 직접 사진을 사용할 수 있습니다</p>
+            </div>
+          </label>
+
+          <label className={clsx(
+            'flex items-center gap-3 rounded-xl border-2 px-4 py-3 cursor-pointer transition-all',
+            form.hasVideos
+              ? 'border-purple-500 bg-purple-50 dark:bg-purple-950/30'
+              : 'border-slate-200 dark:border-slate-700 hover:border-purple-200',
+          )}>
+            <input type="checkbox" className="sr-only" checked={form.hasVideos}
+              onChange={e => set('hasVideos', e.target.checked)} />
+            <div className={clsx(
+              'w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all',
+              form.hasVideos ? 'bg-purple-600 border-purple-600' : 'border-slate-300 dark:border-slate-600',
+            )}>
+              {form.hasVideos && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+            </div>
+            <Video className={clsx('w-4 h-4 shrink-0', form.hasVideos ? 'text-purple-600' : 'text-slate-400')} />
+            <div>
+              <p className={clsx('text-sm font-medium', form.hasVideos ? 'text-purple-700 dark:text-purple-300' : 'text-slate-700 dark:text-slate-300')}>
+                동영상이 있어요
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">슬라이드 씬에 동영상 클립을 사용할 수 있습니다</p>
+            </div>
+          </label>
+        </div>
+
+        {(form.hasPhotos || form.hasVideos) && (
+          <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+            <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            슬라이드 씬 단계에서 업로드 버튼이 활성화됩니다
+          </p>
         )}
       </div>
 
@@ -225,7 +220,8 @@ export default function PlanningStep() {
         {selectedTones.length > 0 && (
           <p className="text-xs text-slate-500">선택: <span className="text-blue-600 dark:text-blue-400 font-medium">{selectedTones.join(', ')}</span></p>
         )}
-        <input className="input-base" placeholder="직접 추가 (예: 희망적인, 열정적인)" value={customTone} onChange={e => setCustomTone(e.target.value)} />
+        <input className="input-base" placeholder="직접 추가 (예: 희망적인, 열정적인)"
+          value={customTone} onChange={e => setCustomTone(e.target.value)} />
       </div>
 
       <div className="flex justify-end pt-2">

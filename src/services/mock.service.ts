@@ -213,7 +213,8 @@ export const DEMO_PLANNING_AUTOFILL = {
     '낙선 이후에도 계속되는 가치와 메시지',
     '지지자들이 앞으로 함께 이어갈 응원과 행동',
   ] as [string, string, string],
-  uploadedAssets: [],
+  hasPhotos: false,
+  hasVideos: false,
   bannedExpressions: '상대 진영에 대한 조롱이나 모욕, 증거 없는 부정선거 단정',
   tone: '따뜻한, 진중한',
 };

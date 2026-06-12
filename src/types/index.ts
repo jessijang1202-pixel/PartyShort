@@ -26,7 +26,8 @@ export interface PlanningInput {
   category: Category;
   topic: string;
   mainPoints: [string, string, string];
-  uploadedAssets: VisualAsset[];
+  hasPhotos: boolean;
+  hasVideos: boolean;
   bannedExpressions: string;
   tone: string;             // comma-joined multi-select, e.g. "따뜻한, 진중한"
 }
