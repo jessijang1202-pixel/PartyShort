@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { RefreshCcw, ChevronRight, ChevronLeft, FileText, Video, Image, Clock } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { RefreshCcw, ChevronRight, ChevronLeft, FileText, Video, Image, Clock, Upload, X, CheckCircle } from 'lucide-react';
 import { useApp } from '../../store/AppContext';
 import Button from '../ui/Button';
 import Alert from '../ui/Alert';
@@ -8,9 +8,10 @@ import { generateScriptSplit } from '../../services/gemini.service';
 import { mockGenerateScriptSplit } from '../../services/mock.service';
 
 export default function ScriptSplitStep() {
-  const { session, settings, setScriptSplit, setStep } = useApp();
+  const { session, settings, setScriptSplit, updateVeoClip, setStep } = useApp();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const videoFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!session.scriptSplit && session.planning && session.selectedIdea && session.selectedHook) {
@@ -31,9 +32,29 @@ export default function ScriptSplitStep() {
     } finally { setLoading(false); }
   }
 
+  function handleVideoUpload(file: File) {
+    const clip = session.scriptSplit?.veo_core_clip;
+    if (!clip) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const url = e.target?.result as string;
+      updateVeoClip({ ...clip, videoUrl: url, status: 'done' });
+    };
+    reader.readAsDataURL(file);
+    if (videoFileRef.current) videoFileRef.current.value = '';
+  }
+
+  function clearVideo() {
+    const clip = session.scriptSplit?.veo_core_clip;
+    if (!clip) return;
+    updateVeoClip({ ...clip, videoUrl: undefined, status: 'idle' });
+  }
+
   if (loading) return <LoadingOverlay label="AI가 대본과 구성을 분리하고 있습니다..." />;
 
   const split = session.scriptSplit;
+  const veoClip = split?.veo_core_clip;
+  const hasUploadedVideo = !!veoClip?.videoUrl;
 
   return (
     <div className="slide-up space-y-6">
@@ -41,7 +62,7 @@ export default function ScriptSplitStep() {
         <div>
           <h2 className="text-xl font-bold text-slate-900 dark:text-white">대본 + 구성 분리</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            전체 대본과 Veo 클립 + 슬라이드 씬으로 분리됩니다
+            전체 대본을 영상 핵심 초반부 + 영상 후반부로 분리합니다
           </p>
         </div>
         <Button variant="secondary" size="sm" leftIcon={<RefreshCcw className="w-3.5 h-3.5" />} onClick={doGenerate}>
@@ -89,16 +110,25 @@ export default function ScriptSplitStep() {
             </div>
           </div>
 
-          {/* Veo Core Clip */}
+          {/* 영상 핵심 초반부 (formerly Veo Core Clip) */}
           <div className="wizard-card space-y-3 border-2 border-blue-200 dark:border-blue-800">
+            {/* Hidden video file input */}
+            <input
+              ref={videoFileRef}
+              type="file"
+              accept="video/*"
+              className="hidden"
+              onChange={e => { const f = e.target.files?.[0]; if (f) handleVideoUpload(f); }}
+            />
+
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
                   <Video className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-slate-900 dark:text-white">Veo 핵심 클립</h3>
-                  <p className="text-xs text-slate-500">AI 생성 영상 (8–10초)</p>
+                  <h3 className="font-semibold text-slate-900 dark:text-white">영상 핵심 초반부</h3>
+                  <p className="text-xs text-slate-500">직접 업로드 또는 AI 생성 (8–10초)</p>
                 </div>
               </div>
               <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
@@ -106,7 +136,50 @@ export default function ScriptSplitStep() {
                 <span className="text-sm font-semibold">{split.veo_core_clip.duration}s</span>
               </div>
             </div>
-            <div className="space-y-2">
+
+            {/* Uploaded video preview */}
+            {hasUploadedVideo && (
+              <div className="relative rounded-xl overflow-hidden bg-black aspect-[9/16] max-h-64 mx-auto max-w-[145px]">
+                <video
+                  src={veoClip!.videoUrl}
+                  controls
+                  loop
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+                <button
+                  onClick={clearVideo}
+                  className="absolute top-2 right-2 w-6 h-6 bg-black/70 rounded-full flex items-center justify-center hover:bg-black/90 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5 text-white" />
+                </button>
+              </div>
+            )}
+
+            {/* Upload / status row */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                variant={hasUploadedVideo ? 'secondary' : 'primary'}
+                size="sm"
+                leftIcon={hasUploadedVideo ? <RefreshCcw className="w-3.5 h-3.5" /> : <Upload className="w-3.5 h-3.5" />}
+                onClick={() => videoFileRef.current?.click()}
+              >
+                {hasUploadedVideo ? '다른 영상으로 교체' : '동영상 직접 업로드'}
+              </Button>
+              {hasUploadedVideo && (
+                <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                  <CheckCircle className="w-3.5 h-3.5" />
+                  업로드된 영상 사용 — 다음 단계에서 Veo 생성 불필요
+                </span>
+              )}
+              {!hasUploadedVideo && (
+                <span className="text-xs text-slate-500">
+                  영상 없으면 다음 단계에서 Veo AI로 생성합니다
+                </span>
+              )}
+            </div>
+
+            <div className="space-y-2 pt-1">
               <div>
                 <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">나레이션 텍스트 (한국어)</p>
                 <p className="text-sm text-slate-800 dark:text-slate-200 bg-blue-50 dark:bg-blue-950/30 rounded-lg px-3 py-2">
@@ -122,12 +195,12 @@ export default function ScriptSplitStep() {
             </div>
           </div>
 
-          {/* Slide Scenes */}
+          {/* 영상 후반부 (formerly Slide Scenes) */}
           <div className="wizard-card space-y-3">
             <div className="flex items-center gap-2">
               <Image className="w-4 h-4 text-amber-500" />
               <h3 className="font-semibold text-slate-900 dark:text-white">
-                슬라이드 씬 ({split.slide_scenes.length}개 · {split.slide_scenes.reduce((s, sc) => s + sc.duration_seconds, 0)}초)
+                영상 후반부 ({split.slide_scenes.length}개 씬 · {split.slide_scenes.reduce((s, sc) => s + sc.duration_seconds, 0)}초)
               </h3>
             </div>
             <div className="space-y-3">
@@ -161,17 +234,17 @@ export default function ScriptSplitStep() {
           </div>
 
           {/* Timeline summary */}
-          <div className="bg-slate-100 dark:bg-slate-800 rounded-xl p-3 flex items-center gap-3 text-sm">
+          <div className="bg-slate-100 dark:bg-slate-800 rounded-xl p-3 flex items-center gap-3 text-sm flex-wrap">
             <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
               <Video className="w-4 h-4" />
               <span className="font-semibold">{split.veo_core_clip.duration}s</span>
-              <span className="text-slate-500">Veo 클립</span>
+              <span className="text-slate-500">초반부</span>
             </div>
             <span className="text-slate-300 dark:text-slate-600">+</span>
             <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
               <Image className="w-4 h-4" />
               <span className="font-semibold">{split.slide_scenes.reduce((s, sc) => s + sc.duration_seconds, 0)}s</span>
-              <span className="text-slate-500">{split.slide_scenes.length}개 슬라이드</span>
+              <span className="text-slate-500">후반부 {split.slide_scenes.length}개 씬</span>
             </div>
             <span className="text-slate-300 dark:text-slate-600">=</span>
             <div className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-white">
@@ -185,7 +258,7 @@ export default function ScriptSplitStep() {
       <div className="flex justify-between pt-2">
         <Button variant="secondary" leftIcon={<ChevronLeft className="w-4 h-4" />} onClick={() => setStep('hooks')}>이전</Button>
         <Button rightIcon={<ChevronRight className="w-4 h-4" />} onClick={() => setStep('veo-clip')} disabled={!split}>
-          Veo 클립 생성하기
+          초반부 영상으로
         </Button>
       </div>
     </div>

@@ -79,7 +79,7 @@ export default function SlidesStep() {
     <div className="slide-up space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white">슬라이드 씬</h2>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">영상 후반부</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
             {scenes.length}개 씬 · {scenes.reduce((s, sc) => s + sc.duration_seconds, 0)}초
           </p>
@@ -261,6 +261,7 @@ export default function SlidesStep() {
         <Button rightIcon={<ChevronRight className="w-4 h-4" />} onClick={() => setStep('storyboard')}>
           스토리보드 보기
         </Button>
+
       </div>
     </div>
   );

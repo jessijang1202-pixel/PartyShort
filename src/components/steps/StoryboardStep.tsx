@@ -13,7 +13,7 @@ function buildSegments(scriptSplit: NonNullable<ReturnType<typeof useApp>['sessi
   segs.push({
     id: 'veo_core',
     type: 'veo',
-    label: 'Veo 클립',
+    label: '초반부 영상',
     startTime: t,
     endTime: t + veo.duration,
     videoUrl: veo.videoUrl,
@@ -124,7 +124,7 @@ export default function StoryboardStep() {
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-blue-900 to-blue-950">
                     <Video className="w-10 h-10 text-blue-400 mb-3" />
-                    <p className="text-xs text-blue-300 text-center px-3">Veo 클립 ({split.veo_core_clip.duration}초)</p>
+                    <p className="text-xs text-blue-300 text-center px-3">초반부 영상 ({split.veo_core_clip.duration}초)</p>
                   </div>
                 )
               ) : (
@@ -155,7 +155,7 @@ export default function StoryboardStep() {
                   ? 'bg-blue-600/80 text-white'
                   : 'bg-amber-500/80 text-white'
                 }`}>
-                {activeSeg.type === 'veo' ? 'VEO' : `슬라이드 ${segments.filter(s => s.type === 'slide').findIndex(s => s.id === activeSeg.id) + 1}`}
+                {activeSeg.type === 'veo' ? '초반부' : `후반부 ${segments.filter(s => s.type === 'slide').findIndex(s => s.id === activeSeg.id) + 1}`}
               </div>
             </>
           ) : (
@@ -214,11 +214,11 @@ export default function StoryboardStep() {
       <div className="flex items-center gap-4 text-xs text-slate-500">
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded bg-blue-500" />
-          <span>Veo AI 클립</span>
+          <span>초반부 영상</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded bg-amber-400" />
-          <span>슬라이드 씬</span>
+          <span>후반부 씬</span>
         </div>
       </div>
 
