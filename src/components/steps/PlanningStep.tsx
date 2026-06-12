@@ -28,6 +28,10 @@ export default function PlanningStep() {
   };
 
   const [form, setForm] = useState<PlanningInput>(initial);
+  // 말투 복수 선택: form.tone은 저장 시 join(",  ")로 병합
+  const [selectedTones, setSelectedTones] = useState<string[]>(() =>
+    initial.tone ? initial.tone.split(', ').filter(Boolean) : [],
+  );
   const [customTone, setCustomTone] = useState('');
   const [analyzingIds, setAnalyzingIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
@@ -80,24 +84,34 @@ export default function PlanningStep() {
     set('uploadedAssets', form.uploadedAssets.filter(a => a.id !== id));
   }
 
+  function toggleTone(t: string) {
+    setSelectedTones(prev =>
+      prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t],
+    );
+    setCustomTone('');
+  }
+
   function validate(): string {
     if (!form.identity.trim()) return '내 소개를 입력해주세요.';
     if (!form.topic.trim()) return '주제를 입력해주세요.';
     if (form.mainPoints.some(p => !p.trim())) return '주요 포인트 3개를 모두 입력해주세요.';
-    if (!form.tone && !customTone) return '원하는 말투를 선택하거나 입력해주세요.';
+    if (selectedTones.length === 0 && !customTone.trim()) return '원하는 말투를 선택하거나 입력해주세요.';
     return '';
   }
 
   function handleNext() {
     const err = validate();
     if (err) { setError(err); return; }
-    const finalTone = form.tone || customTone;
+    const finalTone = selectedTones.length > 0
+      ? [...selectedTones, ...(customTone.trim() ? [customTone.trim()] : [])].join(', ')
+      : customTone.trim();
     updatePlanning({ ...form, tone: finalTone });
     setStep('ideas');
   }
 
   function autoFill() {
     setForm(DEMO_FILL);
+    setSelectedTones(['쉬운']);
     setCustomTone('');
     setError('');
   }
@@ -253,29 +267,45 @@ export default function PlanningStep() {
 
       {/* Tone */}
       <div className="wizard-card space-y-3">
-        <label className="section-label">원하는 말투 *</label>
-        <p className="text-xs text-slate-500 dark:text-slate-400">영상의 전반적인 톤을 선택하거나 직접 입력하세요.</p>
-        <div className="flex flex-wrap gap-2">
-          {TONE_OPTIONS.map(t => (
-            <button
-              key={t}
-              onClick={() => { set('tone', t); setCustomTone(''); }}
-              className={clsx(
-                'px-3 py-1.5 rounded-lg text-sm font-medium border-2 transition-all duration-200',
-                form.tone === t
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300'
-                  : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-blue-300',
-              )}
-            >
-              {t}
-            </button>
-          ))}
+        <div className="flex items-center justify-between">
+          <label className="section-label">원하는 말투 *</label>
+          {selectedTones.length > 0 && (
+            <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+              {selectedTones.length}개 선택됨
+            </span>
+          )}
         </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400">여러 개 중복 선택 가능합니다.</p>
+        <div className="flex flex-wrap gap-2">
+          {TONE_OPTIONS.map(t => {
+            const active = selectedTones.includes(t);
+            return (
+              <button
+                key={t}
+                onClick={() => toggleTone(t)}
+                className={clsx(
+                  'px-3 py-1.5 rounded-lg text-sm font-medium border-2 transition-all duration-200 flex items-center gap-1.5',
+                  active
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300'
+                    : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-blue-300',
+                )}
+              >
+                {active && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />}
+                {t}
+              </button>
+            );
+          })}
+        </div>
+        {selectedTones.length > 0 && (
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            선택: <span className="text-blue-600 dark:text-blue-400 font-medium">{selectedTones.join(', ')}</span>
+          </p>
+        )}
         <input
           className="input-base"
-          placeholder="직접 입력 (예: 열정적인, 차분한, 희망적인)"
+          placeholder="직접 추가 (예: 열정적인, 차분한, 희망적인)"
           value={customTone}
-          onChange={e => { setCustomTone(e.target.value); set('tone', ''); }}
+          onChange={e => setCustomTone(e.target.value)}
         />
       </div>
 
