@@ -40,7 +40,7 @@ export default function Home() {
           Gemini AI + Google Flow
         </div>
         <h1 className="text-4xl sm:text-5xl font-bold text-slate-900 dark:text-white mb-4 leading-tight">
-          Party Shorts Studio
+          조국혁신당 숏츠 제작소
         </h1>
         <p className="text-lg sm:text-xl text-slate-500 dark:text-slate-400 mb-2">
           당원을 위한 30초 숏폼 영상 제작 스튜디오
@@ -132,7 +132,7 @@ export default function Home() {
 
       {/* Footer */}
       <p className="text-center text-xs text-slate-400 dark:text-slate-600 mt-8">
-        Party Shorts Studio — 세션 중 데이터만 보관됩니다. API 키는 브라우저에만 저장됩니다.
+        조국혁신당 숏츠 제작소 — 세션 중 데이터만 보관됩니다. API 키는 브라우저에만 저장됩니다.
       </p>
     </div>
   );

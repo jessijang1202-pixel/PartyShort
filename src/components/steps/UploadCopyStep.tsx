@@ -89,7 +89,7 @@ function ExportSummary() {
   const { planning, selectedIdea, selectedHook, script, safetyReview, videoPackage, uploadCopy } = session;
 
   const fullExport = [
-    '=== Party Shorts Studio — 최종 산출물 ===',
+    '=== 조국혁신당 숏츠 제작소 — 최종 산출물 ===',
     '',
     `[ 기획 ]`,
     `- 작성자: ${planning?.identity}`,

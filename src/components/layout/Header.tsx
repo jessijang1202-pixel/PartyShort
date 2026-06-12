@@ -17,7 +17,7 @@ export default function Header() {
             <Film className="w-4 h-4 text-white" />
           </div>
           <span className="font-bold text-slate-900 dark:text-white text-sm sm:text-base hidden xs:block">
-            Party Shorts Studio
+            조국혁신당 숏츠 제작소
           </span>
         </Link>
 
