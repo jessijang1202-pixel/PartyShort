@@ -1,0 +1,219 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Key, Eye, EyeOff, CheckCircle, XCircle, Loader2, Trash2, ExternalLink, ArrowLeft, Info } from 'lucide-react';
+import { useApp } from '../store/AppContext';
+import type { UserApiSettings } from '../types';
+import Button from '../components/ui/Button';
+import Alert from '../components/ui/Alert';
+import { validateGeminiKey } from '../services/gemini.service';
+
+type ValidStatus = 'idle' | 'validating' | 'valid' | 'invalid';
+
+export default function Settings() {
+  const { settings, setSettings } = useApp();
+  const navigate = useNavigate();
+
+  const [form, setForm] = useState<UserApiSettings>({ ...settings });
+  const [showGemini, setShowGemini] = useState(false);
+  const [showFlow, setShowFlow] = useState(false);
+  const [geminiStatus, setGeminiStatus] = useState<ValidStatus>('idle');
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleValidateGemini() {
+    if (!form.geminiApiKey) return;
+    setGeminiStatus('validating');
+    try {
+      const valid = await validateGeminiKey(form.geminiApiKey);
+      setGeminiStatus(valid ? 'valid' : 'invalid');
+    } catch {
+      setGeminiStatus('invalid');
+    }
+  }
+
+  function handleSave() {
+    const useMockMode = !form.geminiApiKey.trim();
+    setSettings({ ...form, useMockMode });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  }
+
+  function clearGemini() {
+    setForm(f => ({ ...f, geminiApiKey: '' }));
+    setGeminiStatus('idle');
+  }
+
+  function clearFlow() {
+    setForm(f => ({ ...f, flowApiKey: '' }));
+  }
+
+  const StatusIcon = () => {
+    if (geminiStatus === 'validating') return <Loader2 className="w-4 h-4 animate-spin text-blue-500" />;
+    if (geminiStatus === 'valid') return <CheckCircle className="w-4 h-4 text-emerald-500" />;
+    if (geminiStatus === 'invalid') return <XCircle className="w-4 h-4 text-red-500" />;
+    return null;
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-8">
+        <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="w-4 h-4" />} onClick={() => navigate(-1)}>
+          뒤로
+        </Button>
+      </div>
+
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">API 키 설정</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          각 사용자가 본인의 API 키를 입력해 사용합니다. 키는 세션 중에만 브라우저에 저장됩니다.
+        </p>
+      </div>
+
+      <Alert variant="info" className="mb-6">
+        <strong>보안 안내:</strong> API 키는 서버로 전송되지 않으며, 브라우저 세션 스토리지에만 저장됩니다.
+        브라우저를 닫으면 자동으로 삭제됩니다.
+      </Alert>
+
+      {/* Gemini API Key */}
+      <div className="wizard-card mb-4">
+        <div className="flex items-center gap-2 mb-4">
+          <Key className="w-5 h-5 text-blue-500" />
+          <h2 className="font-semibold text-slate-900 dark:text-white">Gemini API 키</h2>
+          <a
+            href="https://aistudio.google.com/app/apikey"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-auto text-xs text-blue-500 hover:underline flex items-center gap-1"
+          >
+            키 발급받기 <ExternalLink className="w-3 h-3" />
+          </a>
+        </div>
+
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+          아이디어 생성, 훅, 대본, 이미지 분석, 안전 검토, 업로드 카피 생성에 사용됩니다.
+        </p>
+
+        <div className="relative">
+          <input
+            type={showGemini ? 'text' : 'password'}
+            className="input-base pr-20"
+            placeholder="AIzaSy..."
+            value={form.geminiApiKey}
+            onChange={e => { setForm(f => ({ ...f, geminiApiKey: e.target.value })); setGeminiStatus('idle'); }}
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+            <StatusIcon />
+            <button
+              type="button"
+              onClick={() => setShowGemini(s => !s)}
+              className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+            >
+              {showGemini ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        {geminiStatus === 'valid' && (
+          <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1.5 flex items-center gap-1">
+            <CheckCircle className="w-3 h-3" /> 유효한 API 키입니다.
+          </p>
+        )}
+        {geminiStatus === 'invalid' && (
+          <p className="text-xs text-red-600 dark:text-red-400 mt-1.5 flex items-center gap-1">
+            <XCircle className="w-3 h-3" /> 유효하지 않은 API 키입니다.
+          </p>
+        )}
+
+        <div className="flex gap-2 mt-3">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={handleValidateGemini}
+            disabled={!form.geminiApiKey || geminiStatus === 'validating'}
+            loading={geminiStatus === 'validating'}
+          >
+            키 유효성 확인
+          </Button>
+          {form.geminiApiKey && (
+            <Button size="sm" variant="ghost" leftIcon={<Trash2 className="w-3.5 h-3.5" />} onClick={clearGemini}>
+              삭제
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Flow API Key */}
+      <div className="wizard-card mb-4">
+        <div className="flex items-center gap-2 mb-4">
+          <Key className="w-5 h-5 text-purple-500" />
+          <h2 className="font-semibold text-slate-900 dark:text-white">Google Flow API 키</h2>
+          <span className="ml-auto text-xs bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full">
+            향후 지원
+          </span>
+        </div>
+
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+          Google Flow 직접 API 연동은 현재 준비 중입니다. 현재는 프롬프트 패키지를 생성하여 Flow UI에서 수동으로 사용할 수 있습니다.
+        </p>
+
+        <div className="relative">
+          <input
+            type={showFlow ? 'text' : 'password'}
+            className="input-base pr-10 opacity-60"
+            placeholder="준비 중..."
+            value={form.flowApiKey}
+            onChange={e => setForm(f => ({ ...f, flowApiKey: e.target.value }))}
+            disabled
+          />
+          <button
+            type="button"
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400"
+            onClick={() => setShowFlow(s => !s)}
+          >
+            {showFlow ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Mock mode */}
+      <div className="wizard-card mb-6">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="font-semibold text-slate-900 dark:text-white">데모 모드 (Mock)</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              API 키 없이 샘플 데이터로 모든 기능을 체험할 수 있습니다.
+              Gemini API 키를 입력하면 자동으로 실제 모드로 전환됩니다.
+            </p>
+          </div>
+          <div className={`mt-0.5 shrink-0 w-4 h-4 rounded-full ${form.geminiApiKey ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+        </div>
+        <p className="text-xs mt-2 text-slate-400 dark:text-slate-500 flex items-center gap-1">
+          <Info className="w-3 h-3" />
+          현재 상태: {form.geminiApiKey ? '실제 Gemini API 사용' : '데모 모드 (Mock)'}
+        </p>
+      </div>
+
+      {error && <Alert variant="error" className="mb-4" onClose={() => setError('')}>{error}</Alert>}
+      {saved && <Alert variant="success" className="mb-4">설정이 저장되었습니다.</Alert>}
+
+      <div className="flex gap-3">
+        <Button size="lg" onClick={handleSave} leftIcon={<CheckCircle className="w-4 h-4" />}>
+          설정 저장
+        </Button>
+        <Button size="lg" variant="secondary" onClick={() => navigate('/wizard')}>
+          영상 제작으로 이동
+        </Button>
+      </div>
+
+      <div className="mt-8 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-xs text-slate-500 dark:text-slate-400 space-y-1">
+        <p className="font-semibold text-slate-700 dark:text-slate-300">개인정보 및 보안</p>
+        <p>• API 키는 브라우저 sessionStorage에만 저장되며 서버로 전송되지 않습니다.</p>
+        <p>• 탭/브라우저를 닫으면 모든 키와 세션 데이터가 삭제됩니다.</p>
+        <p>• AI 생성 콘텐츠는 각 API 제공자의 이용약관을 따릅니다.</p>
+      </div>
+    </div>
+  );
+}
