@@ -52,13 +52,18 @@ export interface HookOption {
 
 // ─── Script + Split ───────────────────────────────────────────────────────────
 
+export type TextPosition = 'top' | 'center' | 'bottom';
+export type TextSize = 'large' | 'medium' | 'small';
+
 export interface VeoCoreClip {
   text: string;             // spoken narration for the 8-10s clip
   prompt: string;           // full Veo generation prompt (English)
   duration: number;         // 8–10 seconds
-  videoUrl?: string;        // base64 data URI or blob URL after generation
+  videoUrl?: string;        // blob URL or data URI after generation/upload
   status: GenerationStatus;
   errorMessage?: string;
+  textPosition?: TextPosition;  // overlay text position on video
+  textSize?: TextSize;           // overlay text size on video
 }
 
 export interface SlideScene {
@@ -96,6 +101,8 @@ export interface StoryboardSegment {
   imageUrl?: string;
   on_screen_text?: string;
   narration?: string;
+  textPosition?: TextPosition;
+  textSize?: TextSize;
 }
 
 // ─── Upload Copy ──────────────────────────────────────────────────────────────
@@ -121,11 +128,43 @@ export interface UploadCopyPackage {
   platformVersions: PlatformCopy[];
 }
 
+// ─── Subtitle & Narration ─────────────────────────────────────────────────────
+
+export type NarrationGender = 'male' | 'female';
+export type NarrationMood = '차분한' | '활기찬' | '진지한' | '감성적인' | '뉴스처럼' | '친근한';
+export type SubtitleStyle = 'default' | 'bold' | 'outline' | 'shadow';
+
+export interface SoundEffect {
+  id: string;
+  label: string;
+  prompt: string;
+  durationSeconds: number;
+  audioUrl?: string;
+  status: GenerationStatus;
+  errorMessage?: string;
+}
+
+export interface SubtitleNarrationSettings {
+  subtitleEnabled: boolean;
+  subtitlePosition: TextPosition;
+  subtitleSize: TextSize;
+  subtitleStyle: SubtitleStyle;
+  narrationEnabled: boolean;
+  narrationGender: NarrationGender;
+  narrationMood: NarrationMood;
+  narrationSpeed: number;          // 0.7 ~ 1.5
+  selectedVoiceId?: string;
+  selectedVoiceName?: string;
+  soundEffectsEnabled: boolean;
+  soundEffects: SoundEffect[];
+}
+
 // ─── Settings ─────────────────────────────────────────────────────────────────
 
 export interface UserApiSettings {
   geminiApiKey: string;
   useMockMode: boolean;
+  elevenLabsApiKey?: string;
 }
 
 // ─── Wizard Navigation ────────────────────────────────────────────────────────
@@ -137,6 +176,7 @@ export type WizardStep =
   | 'script-split'
   | 'veo-clip'
   | 'slides'
+  | 'subtitle-narration'
   | 'storyboard'
   | 'upload-copy'
   | 'export';
@@ -149,15 +189,16 @@ export interface WizardStepMeta {
 }
 
 export const WIZARD_STEPS: WizardStepMeta[] = [
-  { id: 'planning',     label: '기획 입력',        shortLabel: '기획',      stepNumber: 1 },
-  { id: 'ideas',        label: '아이디어 선택',     shortLabel: '아이디어',   stepNumber: 2 },
-  { id: 'hooks',        label: '훅 선택',           shortLabel: '훅',        stepNumber: 3 },
-  { id: 'script-split', label: '대본 + 구성 분리',  shortLabel: '대본',      stepNumber: 4 },
-  { id: 'veo-clip',     label: '영상 핵심 초반부',  shortLabel: '초반부',    stepNumber: 5 },
-  { id: 'slides',       label: '영상 후반부',       shortLabel: '후반부',    stepNumber: 6 },
-  { id: 'storyboard',   label: '30초 스토리보드',   shortLabel: '스토리보드', stepNumber: 7 },
-  { id: 'upload-copy',  label: '업로드 카피',       shortLabel: '카피',      stepNumber: 8 },
-  { id: 'export',       label: '내보내기',          shortLabel: '내보내기',  stepNumber: 9 },
+  { id: 'planning',            label: '기획 입력',        shortLabel: '기획',       stepNumber: 1 },
+  { id: 'ideas',               label: '아이디어 선택',     shortLabel: '아이디어',   stepNumber: 2 },
+  { id: 'hooks',               label: '훅 선택',           shortLabel: '훅',         stepNumber: 3 },
+  { id: 'script-split',        label: '대본 + 구성 분리',  shortLabel: '대본',       stepNumber: 4 },
+  { id: 'veo-clip',            label: '영상 핵심 초반부',  shortLabel: '초반부',     stepNumber: 5 },
+  { id: 'slides',              label: '영상 후반부',       shortLabel: '후반부',     stepNumber: 6 },
+  { id: 'subtitle-narration',  label: '자막과 나레이션',   shortLabel: '자막/나레이션', stepNumber: 7 },
+  { id: 'storyboard',          label: '30초 스토리보드',   shortLabel: '스토리보드', stepNumber: 8 },
+  { id: 'upload-copy',         label: '업로드 카피',       shortLabel: '카피',       stepNumber: 9 },
+  { id: 'export',              label: '내보내기',          shortLabel: '내보내기',   stepNumber: 10 },
 ];
 
 // ─── Full Session ─────────────────────────────────────────────────────────────
@@ -169,6 +210,7 @@ export interface AppSession {
   hooks: HookOption[];
   selectedHook: HookOption | null;
   scriptSplit: ScriptSplit | null;
+  subtitleNarration: SubtitleNarrationSettings | null;
   uploadCopy: UploadCopyPackage | null;
   currentStep: WizardStep;
 }

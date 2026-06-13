@@ -1,10 +1,95 @@
 import { useState } from 'react';
 import { ChevronRight, ChevronLeft, Video, Play, RefreshCcw, AlertCircle, CheckCircle, Loader2, Upload } from 'lucide-react';
 import { useApp } from '../../store/AppContext';
+import type { TextPosition, TextSize } from '../../types';
 import Button from '../ui/Button';
 import Alert from '../ui/Alert';
 import { mockGenerateVeoClip } from '../../services/mock.service';
 import { generateVeoClip } from '../../services/veo.service';
+
+function getPositionClass(pos: TextPosition | undefined) {
+  if (pos === 'top') return 'top-6';
+  if (pos === 'center') return 'top-1/2 -translate-y-1/2';
+  return 'bottom-6';
+}
+
+function getSizeClass(size: TextSize | undefined) {
+  if (size === 'large') return 'text-sm font-bold';
+  if (size === 'small') return 'text-[9px] font-medium';
+  return 'text-xs font-semibold';
+}
+
+function VideoWithOverlay({ videoUrl, text, position, size }: {
+  videoUrl: string;
+  text: string;
+  position: TextPosition | undefined;
+  size: TextSize | undefined;
+}) {
+  return (
+    <div className="relative rounded-xl overflow-hidden bg-black aspect-[9/16] max-h-80 mx-auto max-w-[180px]">
+      <video src={videoUrl} controls loop playsInline className="w-full h-full object-cover" />
+      <div className={`absolute left-0 right-0 px-3 pointer-events-none ${getPositionClass(position)}`}>
+        <p
+          className={`text-white text-center leading-snug whitespace-pre-line ${getSizeClass(size)}`}
+          style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.6)' }}
+        >
+          {text}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function TextOverlayControls({ position, size, onChange }: {
+  position: TextPosition | undefined;
+  size: TextSize | undefined;
+  onChange: (pos: TextPosition, sz: TextSize) => void;
+}) {
+  const curPos = position ?? 'bottom';
+  const curSize = size ?? 'medium';
+
+  return (
+    <div className="space-y-2.5 pt-3 border-t border-slate-100 dark:border-slate-700">
+      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">스크립트 오버레이</p>
+      <div className="flex items-center gap-3">
+        <span className="text-xs text-slate-500 w-12 shrink-0">위치</span>
+        <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 text-xs">
+          {(['top', 'center', 'bottom'] as const).map(pos => (
+            <button
+              key={pos}
+              onClick={() => onChange(pos, curSize)}
+              className={`px-3 py-1.5 font-medium transition-colors ${
+                curPos === pos
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+              }`}
+            >
+              {pos === 'top' ? '위' : pos === 'center' ? '중앙' : '아래'}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="text-xs text-slate-500 w-12 shrink-0">크기</span>
+        <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 text-xs">
+          {(['large', 'medium', 'small'] as const).map(sz => (
+            <button
+              key={sz}
+              onClick={() => onChange(curPos, sz)}
+              className={`px-3 py-1.5 font-medium transition-colors ${
+                curSize === sz
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+              }`}
+            >
+              {sz === 'large' ? '크게' : sz === 'medium' ? '보통' : '작게'}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function VeoClipStep() {
   const { session, settings, updateVeoClip, setStep } = useApp();
@@ -18,9 +103,12 @@ export default function VeoClipStep() {
   const isPending = clip.status === 'pending' || clip.status === 'generating';
   const isDone = clip.status === 'done';
   const isError = clip.status === 'error';
-
-  // True when user manually uploaded a video (not AI-generated placeholder)
   const isUserUploaded = isDone && !!clip.videoUrl;
+
+  function handleOverlayChange(pos: TextPosition, sz: TextSize) {
+    if (!clip) return;
+    updateVeoClip({ ...clip, textPosition: pos, textSize: sz });
+  }
 
   async function handleGenerate() {
     if (!clip) return;
@@ -57,20 +145,22 @@ export default function VeoClipStep() {
     setStep('slides');
   }
 
+  const hasVideo = isDone && !!clip.videoUrl;
+
   return (
     <div className="slide-up space-y-6">
       <div>
         <h2 className="text-xl font-bold text-slate-900 dark:text-white">영상 핵심 초반부</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
           {isUserUploaded
-            ? '대본 단계에서 업로드한 영상이 초반부로 사용됩니다'
+            ? '업로드한 영상을 초반부로 사용합니다'
             : `Veo 3.1 Lite로 첫 ${clip.duration}초 AI 영상을 생성합니다`}
         </p>
       </div>
 
       {error && <Alert variant="error" onClose={() => setError('')}>{error}</Alert>}
 
-      {/* Uploaded video — direct use banner */}
+      {/* Uploaded video banner */}
       {isUserUploaded && (
         <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl px-4 py-3 flex items-start gap-3">
           <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
@@ -90,7 +180,7 @@ export default function VeoClipStep() {
         </Alert>
       )}
 
-      {/* Clip Info card */}
+      {/* Clip card */}
       <div className="wizard-card border-2 border-blue-200 dark:border-blue-800 space-y-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shrink-0">
@@ -102,6 +192,24 @@ export default function VeoClipStep() {
           </div>
         </div>
 
+        {/* Video preview with text overlay */}
+        {hasVideo && (
+          <>
+            <VideoWithOverlay
+              videoUrl={clip.videoUrl!}
+              text={clip.text}
+              position={clip.textPosition}
+              size={clip.textSize}
+            />
+            <TextOverlayControls
+              position={clip.textPosition}
+              size={clip.textSize}
+              onChange={handleOverlayChange}
+            />
+          </>
+        )}
+
+        {/* Script text */}
         <div className="space-y-2">
           <div>
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">나레이션 내용</p>
@@ -119,21 +227,15 @@ export default function VeoClipStep() {
           )}
         </div>
 
-        {/* Uploaded video preview */}
-        {isUserUploaded && clip.videoUrl && (
-          <div className="space-y-3">
-            <div className="relative rounded-xl overflow-hidden bg-black aspect-[9/16] max-h-80 mx-auto max-w-[180px]">
-              <video src={clip.videoUrl} controls loop playsInline className="w-full h-full object-cover" />
-            </div>
-            <Button variant="secondary" size="sm" className="w-full"
-              leftIcon={<Upload className="w-3.5 h-3.5" />}
-              onClick={() => updateVeoClip({ ...clip, videoUrl: undefined, status: 'idle' })}>
-              대본 단계로 돌아가 교체
-            </Button>
-          </div>
+        {/* Actions */}
+        {isUserUploaded && (
+          <Button variant="secondary" size="sm" className="w-full"
+            leftIcon={<Upload className="w-3.5 h-3.5" />}
+            onClick={() => updateVeoClip({ ...clip, videoUrl: undefined, status: 'idle' })}>
+            대본 단계로 돌아가 교체
+          </Button>
         )}
 
-        {/* Veo generation area — only when no uploaded video */}
         {!isUserUploaded && (
           <>
             {isIdle && (
@@ -172,15 +274,10 @@ export default function VeoClipStep() {
             )}
 
             {isDone && clip.videoUrl && (
-              <div className="space-y-3">
-                <div className="relative rounded-xl overflow-hidden bg-black aspect-[9/16] max-h-80 mx-auto max-w-[180px]">
-                  <video src={clip.videoUrl} controls loop playsInline className="w-full h-full object-cover" />
-                </div>
-                <Button variant="secondary" size="sm" className="w-full"
-                  leftIcon={<RefreshCcw className="w-3.5 h-3.5" />} onClick={handleGenerate}>
-                  Veo로 다시 생성
-                </Button>
-              </div>
+              <Button variant="secondary" size="sm" className="w-full"
+                leftIcon={<RefreshCcw className="w-3.5 h-3.5" />} onClick={handleGenerate}>
+                Veo로 다시 생성
+              </Button>
             )}
 
             {isError && (

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronRight, ChevronLeft, Play, Pause, RotateCcw, Video, Image } from 'lucide-react';
 import { useApp } from '../../store/AppContext';
-import type { StoryboardSegment } from '../../types';
+import type { StoryboardSegment, TextPosition, TextSize } from '../../types';
 import Button from '../ui/Button';
 import StoryboardTimeline from '../storyboard/StoryboardTimeline';
 
@@ -17,7 +17,10 @@ function buildSegments(scriptSplit: NonNullable<ReturnType<typeof useApp>['sessi
     startTime: t,
     endTime: t + veo.duration,
     videoUrl: veo.videoUrl,
+    on_screen_text: veo.text,
     narration: veo.text,
+    textPosition: veo.textPosition,
+    textSize: veo.textSize,
   });
   t += veo.duration;
 
@@ -38,6 +41,18 @@ function buildSegments(scriptSplit: NonNullable<ReturnType<typeof useApp>['sessi
   return segs;
 }
 
+function getOverlayPosition(pos: TextPosition | undefined) {
+  if (pos === 'top') return 'top-6';
+  if (pos === 'center') return 'top-1/2 -translate-y-1/2';
+  return 'bottom-6';
+}
+
+function getOverlaySize(size: TextSize | undefined) {
+  if (size === 'large') return 'text-sm font-bold';
+  if (size === 'small') return 'text-[9px] font-medium';
+  return 'text-xs font-semibold';
+}
+
 export default function StoryboardStep() {
   const { session, setStep } = useApp();
   const split = session.scriptSplit;
@@ -48,23 +63,27 @@ export default function StoryboardStep() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const activeSeg = segments.find(s => s.id === activeId) ?? null;
 
+  // Sync video play/pause via ref (autoPlay prop is not reactive)
   useEffect(() => {
-    if (segments.length) setActiveId(segments[0].id);
-  }, []);
+    const v = videoRef.current;
+    if (!v) return;
+    if (isPlaying) v.play().catch(() => {});
+    else v.pause();
+  }, [isPlaying, activeId]);
 
   useEffect(() => {
     if (isPlaying) {
       timerRef.current = setInterval(() => {
         setCurrentTime(prev => {
-          const next = prev + 0.1;
+          const next = +(prev + 0.1).toFixed(1);
           if (next >= totalDuration) {
             setIsPlaying(false);
             return totalDuration;
           }
-          // update active segment
           const seg = segments.find(s => s.startTime <= next && s.endTime > next);
           if (seg) setActiveId(seg.id);
           return next;
@@ -120,11 +139,44 @@ export default function StoryboardStep() {
             <>
               {activeSeg.type === 'veo' ? (
                 activeSeg.videoUrl ? (
-                  <video src={activeSeg.videoUrl} className="w-full h-full object-cover" autoPlay={isPlaying} loop muted playsInline />
+                  <div className="relative w-full h-full">
+                    <video
+                      ref={videoRef}
+                      key={activeSeg.id}
+                      src={activeSeg.videoUrl}
+                      className="w-full h-full object-cover"
+                      loop
+                      muted
+                      playsInline
+                      preload="auto"
+                    />
+                    {/* Script overlay */}
+                    {activeSeg.on_screen_text && (
+                      <div className={`absolute left-0 right-0 px-3 pointer-events-none ${getOverlayPosition(activeSeg.textPosition)}`}>
+                        <p
+                          className={`text-white text-center leading-snug whitespace-pre-line ${getOverlaySize(activeSeg.textSize)}`}
+                          style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.6)' }}
+                        >
+                          {activeSeg.on_screen_text}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-blue-900 to-blue-950">
+                  <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-blue-900 to-blue-950 relative">
                     <Video className="w-10 h-10 text-blue-400 mb-3" />
                     <p className="text-xs text-blue-300 text-center px-3">초반부 영상 ({split.veo_core_clip.duration}초)</p>
+                    {/* Script overlay even without video */}
+                    {activeSeg.on_screen_text && (
+                      <div className={`absolute left-0 right-0 px-3 pointer-events-none ${getOverlayPosition(activeSeg.textPosition)}`}>
+                        <p
+                          className={`text-white text-center leading-snug whitespace-pre-line ${getOverlaySize(activeSeg.textSize)}`}
+                          style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}
+                        >
+                          {activeSeg.on_screen_text}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )
               ) : (
@@ -132,7 +184,7 @@ export default function StoryboardStep() {
                   <div className="w-full h-full relative">
                     <img src={activeSeg.imageUrl} alt={activeSeg.label} className="w-full h-full object-cover" />
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-4 pb-6 pt-8">
-                      <p className="text-white text-center font-bold text-sm leading-snug whitespace-pre-line">
+                      <p className="text-white text-center font-bold text-xs leading-snug whitespace-pre-line">
                         {activeSeg.on_screen_text}
                       </p>
                     </div>
@@ -150,7 +202,7 @@ export default function StoryboardStep() {
               )}
 
               {/* Segment type badge */}
-              <div className={`absolute top-8 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold
+              <div className={`absolute top-8 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold z-10
                 ${activeSeg.type === 'veo'
                   ? 'bg-blue-600/80 text-white'
                   : 'bg-amber-500/80 text-white'
@@ -165,7 +217,7 @@ export default function StoryboardStep() {
           )}
 
           {/* Time overlay */}
-          <div className="absolute bottom-2 right-2 bg-black/60 rounded px-1.5 py-0.5 text-[10px] text-white font-mono">
+          <div className="absolute bottom-2 right-2 bg-black/60 rounded px-1.5 py-0.5 text-[10px] text-white font-mono z-10">
             {currentTime.toFixed(1)}s / {totalDuration}s
           </div>
         </div>
@@ -181,7 +233,7 @@ export default function StoryboardStep() {
           className="w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-700 flex items-center justify-center shadow-lg transition-colors">
           {isPlaying ? <Pause className="w-5 h-5 text-white" /> : <Play className="w-5 h-5 text-white ml-0.5" />}
         </button>
-        <div className="w-9 h-9" /> {/* spacer */}
+        <div className="w-9 h-9" />
       </div>
 
       {/* Timeline */}

@@ -1,8 +1,12 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import type { User } from '@supabase/supabase-js';
 import type {
   AppSession, WizardStep, PlanningInput, ContentIdea, HookOption,
   ScriptSplit, SlideScene, VeoCoreClip, UploadCopyPackage, UserApiSettings,
+  SubtitleNarrationSettings,
 } from '../types';
+import { useAuth } from './AuthContext';
+import { loadUserProfile, saveUserProfile } from '../services/db.service';
 
 // ─── Initial State ─────────────────────────────────────────────────────────────
 
@@ -13,6 +17,7 @@ const initialSession: AppSession = {
   hooks: [],
   selectedHook: null,
   scriptSplit: null,
+  subtitleNarration: null,
   uploadCopy: null,
   currentStep: 'planning',
 };
@@ -28,6 +33,7 @@ interface AppContextType {
   session: AppSession;
   settings: UserApiSettings;
   isDark: boolean;
+  currentProjectId: string | null;
   setSettings: (s: UserApiSettings) => void;
   toggleDark: () => void;
   setStep: (step: WizardStep) => void;
@@ -39,7 +45,10 @@ interface AppContextType {
   setScriptSplit: (split: ScriptSplit) => void;
   updateVeoClip: (clip: VeoCoreClip) => void;
   updateSlideScene: (scene: SlideScene) => void;
+  setSubtitleNarration: (s: SubtitleNarrationSettings) => void;
   setUploadCopy: (copy: UploadCopyPackage) => void;
+  setCurrentProjectId: (id: string | null) => void;
+  loadProjectSession: (savedData: Partial<AppSession>, projectId: string) => void;
   resetSession: () => void;
 }
 
@@ -68,6 +77,9 @@ function getInitialDark() {
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const userRef = useRef<User | null>(null);
+
   const [session, setSession] = useState<AppSession>(initialSession);
   const [settings, setSettingsState] = useState<UserApiSettings>(loadSettings);
   const [isDark, setIsDark] = useState<boolean>(() => {
@@ -75,10 +87,44 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (d) document.documentElement.classList.add('dark');
     return d;
   });
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+
+  // Keep userRef in sync for stable callbacks
+  useEffect(() => { userRef.current = user; }, [user]);
+
+  // Sync settings when auth state changes
+  useEffect(() => {
+    if (!user) {
+      // Logged out — clear API key from memory
+      const cleared = { geminiApiKey: '', useMockMode: true };
+      setSettingsState(cleared);
+      persistSettings(cleared);
+      setCurrentProjectId(null);
+      setSession(initialSession);
+    } else {
+      // Logged in — load API key from Supabase
+      loadUserProfile(user.id)
+        .then(profile => {
+          if (profile) {
+            const loaded: UserApiSettings = {
+              geminiApiKey: profile.gemini_api_key ?? '',
+              useMockMode: !profile.gemini_api_key,
+            };
+            setSettingsState(loaded);
+            persistSettings(loaded);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setSettings = useCallback((s: UserApiSettings) => {
     setSettingsState(s);
     persistSettings(s);
+    // Also persist to Supabase when logged in
+    if (userRef.current) {
+      saveUserProfile(userRef.current.id, s.geminiApiKey, s.useMockMode).catch(() => {});
+    }
   }, []);
 
   const toggleDark = useCallback(() => {
@@ -128,19 +174,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       },
     } : s), []);
 
+  const setSubtitleNarration = useCallback((subtitleNarration: SubtitleNarrationSettings) =>
+    setSession(s => ({ ...s, subtitleNarration })), []);
+
   const setUploadCopy = useCallback((uploadCopy: UploadCopyPackage) =>
     setSession(s => ({ ...s, uploadCopy })), []);
 
-  const resetSession = useCallback(() => setSession(initialSession), []);
+  const loadProjectSession = useCallback((savedData: Partial<AppSession>, projectId: string) => {
+    setSession({ ...initialSession, ...savedData });
+    setCurrentProjectId(projectId);
+  }, []);
+
+  const resetSession = useCallback(() => {
+    setSession(initialSession);
+    setCurrentProjectId(null);
+  }, []);
 
   return (
     <AppContext.Provider value={{
-      session, settings, isDark,
+      session, settings, isDark, currentProjectId,
       setSettings, toggleDark, setStep,
       updatePlanning, setIdeas, selectIdea,
       setHooks, selectHook, setScriptSplit,
       updateVeoClip, updateSlideScene,
-      setUploadCopy, resetSession,
+      setSubtitleNarration, setUploadCopy, setCurrentProjectId,
+      loadProjectSession, resetSession,
     }}>
       {children}
     </AppContext.Provider>

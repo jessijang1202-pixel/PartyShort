@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { RefreshCcw, ChevronRight, ChevronLeft, FileText, Video, Image, Clock, Upload, X, CheckCircle } from 'lucide-react';
+import { RefreshCcw, ChevronRight, ChevronLeft, FileText, Video, Image, Clock, Upload, X, CheckCircle, Pencil, Check } from 'lucide-react';
 import { useApp } from '../../store/AppContext';
 import Button from '../ui/Button';
 import Alert from '../ui/Alert';
@@ -11,6 +11,8 @@ export default function ScriptSplitStep() {
   const { session, settings, setScriptSplit, updateVeoClip, setStep } = useApp();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [editingScript, setEditingScript] = useState(false);
+  const [draftScript, setDraftScript] = useState('');
   const videoFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -35,12 +37,8 @@ export default function ScriptSplitStep() {
   function handleVideoUpload(file: File) {
     const clip = session.scriptSplit?.veo_core_clip;
     if (!clip) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const url = e.target?.result as string;
-      updateVeoClip({ ...clip, videoUrl: url, status: 'done' });
-    };
-    reader.readAsDataURL(file);
+    const url = URL.createObjectURL(file);
+    updateVeoClip({ ...clip, videoUrl: url, status: 'done' });
     if (videoFileRef.current) videoFileRef.current.value = '';
   }
 
@@ -83,13 +81,53 @@ export default function ScriptSplitStep() {
         <>
           {/* Full Script */}
           <div className="wizard-card space-y-3">
-            <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-blue-500" />
-              <h3 className="font-semibold text-slate-900 dark:text-white">전체 대본 (~30초)</h3>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-blue-500" />
+                <h3 className="font-semibold text-slate-900 dark:text-white">전체 대본 (~30초)</h3>
+              </div>
+              {!editingScript ? (
+                <button
+                  type="button"
+                  onClick={() => { setDraftScript(split.full_script); setEditingScript(true); }}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors"
+                  title="대본 편집"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => { setScriptSplit({ ...split, full_script: draftScript }); setEditingScript(false); }}
+                    className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
+                    title="저장"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingScript(false)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                    title="취소"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
-            <pre className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-sans leading-relaxed bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4">
-              {split.full_script}
-            </pre>
+            {editingScript ? (
+              <textarea
+                value={draftScript}
+                onChange={e => setDraftScript(e.target.value)}
+                rows={8}
+                className="w-full text-sm text-slate-700 dark:text-slate-300 font-sans leading-relaxed bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-blue-300 dark:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              />
+            ) : (
+              <pre className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-sans leading-relaxed bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4">
+                {split.full_script}
+              </pre>
+            )}
           </div>
 
           {/* Structure */}
@@ -137,16 +175,25 @@ export default function ScriptSplitStep() {
               </div>
             </div>
 
-            {/* Uploaded video preview */}
-            {hasUploadedVideo && (
+            {/* Uploaded video preview with hook script overlay */}
+            {hasUploadedVideo && veoClip && (
               <div className="relative rounded-xl overflow-hidden bg-black aspect-[9/16] max-h-64 mx-auto max-w-[145px]">
                 <video
-                  src={veoClip!.videoUrl}
+                  src={veoClip.videoUrl}
                   controls
                   loop
                   playsInline
                   className="w-full h-full object-cover"
                 />
+                {/* Script overlay */}
+                <div className="absolute bottom-5 left-0 right-0 px-2 pointer-events-none">
+                  <p
+                    className="text-white text-center text-[9px] font-semibold leading-snug whitespace-pre-line"
+                    style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.7)' }}
+                  >
+                    {veoClip.text}
+                  </p>
+                </div>
                 <button
                   onClick={clearVideo}
                   className="absolute top-2 right-2 w-6 h-6 bg-black/70 rounded-full flex items-center justify-center hover:bg-black/90 transition-colors"

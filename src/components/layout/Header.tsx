@@ -1,12 +1,22 @@
-import { Link, useLocation } from 'react-router-dom';
-import { Settings, Moon, Sun, Film, Home, RotateCcw } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Settings, Moon, Sun, Film, Home, RotateCcw, LogOut, User } from 'lucide-react';
 import { useApp } from '../../store/AppContext';
+import { useAuth } from '../../store/AuthContext';
+import { signOut } from '../../services/auth.service';
 import Button from '../ui/Button';
 
 export default function Header() {
   const { isDark, toggleDark, resetSession } = useApp();
+  const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const isWizard = location.pathname === '/wizard';
+
+  async function handleLogout() {
+    if (!window.confirm('로그아웃 하시겠습니까?')) return;
+    await signOut();
+    navigate('/login', { replace: true });
+  }
 
   return (
     <header className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
@@ -61,6 +71,27 @@ export default function Header() {
               : <Moon className="w-4 h-4 text-slate-500" />
             }
           </Button>
+
+          {/* User info + logout */}
+          {user && (
+            <div className="flex items-center gap-1 pl-1 border-l border-slate-200 dark:border-slate-700 ml-1">
+              <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800">
+                <User className="w-3 h-3 text-slate-500" />
+                <span className="text-xs text-slate-600 dark:text-slate-400 max-w-[120px] truncate">
+                  {user.email}
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+                aria-label="로그아웃"
+                className="text-slate-500 hover:text-red-500"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </header>

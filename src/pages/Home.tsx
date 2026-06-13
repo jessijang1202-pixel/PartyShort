@@ -19,6 +19,7 @@ const STEPS = [
   { label: '대본 분리', hint: 'Veo+슬라이드' },
   { label: 'Veo 클립', hint: '8–10s AI' },
   { label: '슬라이드', hint: '이미지+텍스트' },
+  { label: '자막/나레이션', hint: 'ElevenLabs' },
   { label: '스토리보드', hint: '30초 타임라인' },
   { label: '업로드 카피', hint: '' },
   { label: '내보내기', hint: '' },
@@ -49,7 +50,7 @@ export default function Home() {
         </p>
         <p className="text-slate-400 dark:text-slate-500 text-sm max-w-xl mx-auto">
           Veo 3.1 Lite AI 영상(10초) + 슬라이드 씬(20초) = 30초 완성.
-          기획부터 내보내기까지 9단계로 완성도 높은 정치 숏폼을 만드세요.
+          기획부터 내보내기까지 10단계로 완성도 높은 정치 숏폼을 만드세요.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8">
@@ -93,7 +94,7 @@ export default function Home() {
 
       {/* Step flow */}
       <div className="wizard-card mb-12">
-        <h2 className="font-bold text-slate-900 dark:text-white mb-4 text-center">9단계 제작 워크플로우</h2>
+        <h2 className="font-bold text-slate-900 dark:text-white mb-4 text-center">10단계 제작 워크플로우</h2>
         <div className="flex flex-wrap gap-2 justify-center">
           {STEPS.map((step, i) => (
             <div key={i} className="flex items-center gap-2">

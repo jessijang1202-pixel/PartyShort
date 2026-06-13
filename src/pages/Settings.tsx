@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Key, Eye, EyeOff, CheckCircle, XCircle, Loader2, Trash2, ExternalLink, ArrowLeft, Info } from 'lucide-react';
+import { Key, Eye, EyeOff, CheckCircle, XCircle, Loader2, Trash2, ExternalLink, ArrowLeft, Info, Cloud, Mic } from 'lucide-react';
 import { useApp } from '../store/AppContext';
+import { useAuth } from '../store/AuthContext';
 import type { UserApiSettings } from '../types';
 import Button from '../components/ui/Button';
 import Alert from '../components/ui/Alert';
@@ -11,10 +12,12 @@ type ValidStatus = 'idle' | 'validating' | 'valid' | 'invalid';
 
 export default function Settings() {
   const { settings, setSettings } = useApp();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [form, setForm] = useState<UserApiSettings>({ ...settings });
   const [showGemini, setShowGemini] = useState(false);
+  const [showElevenLabs, setShowElevenLabs] = useState(false);
   const [geminiStatus, setGeminiStatus] = useState<ValidStatus>('idle');
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
@@ -61,14 +64,26 @@ export default function Settings() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">API 키 설정</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          각 사용자가 본인의 API 키를 입력해 사용합니다. 키는 세션 중에만 브라우저에 저장됩니다.
+          각 사용자가 본인의 API 키를 입력해 사용합니다.
         </p>
       </div>
 
-      <Alert variant="info" className="mb-6">
-        <strong>보안 안내:</strong> API 키는 서버로 전송되지 않으며, 브라우저 세션 스토리지에만 저장됩니다.
-        브라우저를 닫으면 자동으로 삭제됩니다.
-      </Alert>
+      {/* Account save notice */}
+      {user ? (
+        <div className="flex items-start gap-2.5 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-3 mb-6 text-sm">
+          <Cloud className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-medium text-blue-700 dark:text-blue-300">계정에 저장됩니다</p>
+            <p className="text-blue-600 dark:text-blue-400 text-xs mt-0.5">
+              API 키가 <strong>{user.email}</strong> 계정에 암호화되어 저장됩니다. 다음 로그인 시 자동으로 불러옵니다.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <Alert variant="info" className="mb-6">
+          <strong>보안 안내:</strong> API 키는 브라우저 세션 스토리지에만 저장됩니다. 로그인하면 계정에 영구 저장됩니다.
+        </Alert>
+      )}
 
       {/* Gemini API Key */}
       <div className="wizard-card mb-4">
@@ -140,7 +155,47 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Flow — disabled stub notice */}
+      {/* ElevenLabs API Key */}
+      <div className="wizard-card mb-4">
+        <div className="flex items-center gap-2 mb-4">
+          <Mic className="w-5 h-5 text-purple-500" />
+          <h2 className="font-semibold text-slate-900 dark:text-white">ElevenLabs API 키</h2>
+          <a
+            href="https://elevenlabs.io/app/settings/api-keys"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-auto text-xs text-blue-500 hover:underline flex items-center gap-1"
+          >
+            키 발급받기 <ExternalLink className="w-3 h-3" />
+          </a>
+        </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+          자막과 나레이션 단계에서 AI 음성으로 나레이션을 생성할 때 사용됩니다.
+        </p>
+        <div className="relative">
+          <input
+            type={showElevenLabs ? 'text' : 'password'}
+            className="input-base pr-10"
+            placeholder="sk_..."
+            value={form.elevenLabsApiKey ?? ''}
+            onChange={e => setForm(f => ({ ...f, elevenLabsApiKey: e.target.value }))}
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <button
+            type="button"
+            onClick={() => setShowElevenLabs(s => !s)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+          >
+            {showElevenLabs ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
+        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1.5">
+          현재 세션에만 저장됩니다. 탭을 닫으면 초기화됩니다.
+        </p>
+      </div>
+
+      {/* Flow stub */}
       <div className="wizard-card mb-4 border-dashed border-2 border-slate-200 dark:border-slate-700 opacity-60">
         <div className="flex items-center gap-2 mb-2">
           <Key className="w-5 h-5 text-purple-400" />
@@ -171,7 +226,11 @@ export default function Settings() {
       </div>
 
       {error && <Alert variant="error" className="mb-4" onClose={() => setError('')}>{error}</Alert>}
-      {saved && <Alert variant="success" className="mb-4">설정이 저장되었습니다.</Alert>}
+      {saved && (
+        <Alert variant="success" className="mb-4">
+          {user ? '설정이 계정에 저장되었습니다.' : '설정이 저장되었습니다.'}
+        </Alert>
+      )}
 
       <div className="flex gap-3">
         <Button size="lg" onClick={handleSave} leftIcon={<CheckCircle className="w-4 h-4" />}>
@@ -184,8 +243,17 @@ export default function Settings() {
 
       <div className="mt-8 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-xs text-slate-500 dark:text-slate-400 space-y-1">
         <p className="font-semibold text-slate-700 dark:text-slate-300">개인정보 및 보안</p>
-        <p>• API 키는 브라우저 sessionStorage에만 저장되며 서버로 전송되지 않습니다.</p>
-        <p>• 탭/브라우저를 닫으면 모든 키와 세션 데이터가 삭제됩니다.</p>
+        {user ? (
+          <>
+            <p>• API 키는 Supabase 데이터베이스에 저장되며 본인 계정으로만 접근 가능합니다.</p>
+            <p>• 영상 파일(blob URL)은 저장되지 않으며, 대본·기획 데이터만 저장됩니다.</p>
+          </>
+        ) : (
+          <>
+            <p>• API 키는 브라우저 sessionStorage에만 저장되며 서버로 전송되지 않습니다.</p>
+            <p>• 탭/브라우저를 닫으면 모든 키와 세션 데이터가 삭제됩니다.</p>
+          </>
+        )}
         <p>• AI 생성 콘텐츠는 각 API 제공자의 이용약관을 따릅니다.</p>
       </div>
     </div>
