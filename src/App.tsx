@@ -26,8 +26,12 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+      {/* Home is public — no auth required */}
+      <Route element={<AppLayout />}>
         <Route path="/" element={<Home />} />
+      </Route>
+      {/* Wizard & Settings require login */}
+      <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route path="/wizard" element={<Wizard />} />
         <Route path="/settings" element={<Settings />} />
       </Route>

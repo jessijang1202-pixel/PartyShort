@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
-import { Film, Zap, Image, Download, Settings, ChevronRight, CheckCircle, Sparkles, Video, Layout } from 'lucide-react';
+import { Film, Zap, Image, Download, Settings, ChevronRight, CheckCircle, Sparkles, Video, Layout, Wand2, Sliders } from 'lucide-react';
 import { useApp } from '../store/AppContext';
+import { useAuth } from '../store/AuthContext';
 import Button from '../components/ui/Button';
 
 const FEATURES = [
@@ -28,10 +29,15 @@ const STEPS = [
 export default function Home() {
   const navigate = useNavigate();
   const { settings, resetSession } = useApp();
+  const { user } = useAuth();
 
-  function handleStart() {
+  function handleModeSelect() {
     resetSession();
-    navigate('/wizard');
+    if (user) {
+      navigate('/wizard');
+    } else {
+      navigate('/login');
+    }
   }
 
   return (
@@ -53,27 +59,66 @@ export default function Home() {
           기획부터 내보내기까지 10단계로 완성도 높은 정치 숏폼을 만드세요.
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8">
-          <Button size="lg" rightIcon={<ChevronRight className="w-5 h-5" />} onClick={handleStart}>
-            영상 제작 시작하기
-          </Button>
-          <Button size="lg" variant="secondary" leftIcon={<Settings className="w-4 h-4" />} onClick={() => navigate('/settings')}>
-            API 키 설정
-          </Button>
+        {/* Mode selection buttons */}
+        <div className="grid sm:grid-cols-2 gap-4 mt-10 max-w-xl mx-auto">
+          {/* 간단 영상 만들기 */}
+          <button
+            type="button"
+            onClick={handleModeSelect}
+            className="group flex flex-col items-center gap-3 p-6 rounded-2xl border-2 border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-100 dark:hover:bg-blue-950/60 transition-all text-left"
+          >
+            <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
+              <Wand2 className="w-6 h-6 text-white" />
+            </div>
+            <div className="text-center">
+              <p className="font-bold text-slate-900 dark:text-white text-base mb-1">간단 영상 만들기</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                클릭 몇번으로 30초 숏폼 영상 제작 가능
+              </p>
+            </div>
+            <span className="flex items-center gap-1 text-xs font-semibold text-blue-600 dark:text-blue-400">
+              시작하기 <ChevronRight className="w-3.5 h-3.5" />
+            </span>
+          </button>
+
+          {/* 고급 영상 만들기 */}
+          <button
+            type="button"
+            onClick={handleModeSelect}
+            className="group flex flex-col items-center gap-3 p-6 rounded-2xl border-2 border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950/30 hover:border-purple-500 dark:hover:border-purple-500 hover:bg-purple-100 dark:hover:bg-purple-950/60 transition-all text-left"
+          >
+            <div className="w-12 h-12 rounded-xl bg-purple-600 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
+              <Sliders className="w-6 h-6 text-white" />
+            </div>
+            <div className="text-center">
+              <p className="font-bold text-slate-900 dark:text-white text-base mb-1">고급 영상 만들기</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                동영상, 이미지, 자막, 목소리 등<br />맞춤 제작 가능
+              </p>
+            </div>
+            <span className="flex items-center gap-1 text-xs font-semibold text-purple-600 dark:text-purple-400">
+              시작하기 <ChevronRight className="w-3.5 h-3.5" />
+            </span>
+          </button>
         </div>
 
-        <div className="mt-4">
-          {settings.useMockMode ? (
-            <span className="inline-flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-3 py-1 rounded-full border border-amber-200 dark:border-amber-800">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-              데모 모드 (Mock) — API 키 없이 체험 가능
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
-              <CheckCircle className="w-3 h-3" />
-              Gemini API 연결됨
-            </span>
-          )}
+        <div className="flex items-center justify-center gap-3 mt-4">
+          <div>
+            {settings.useMockMode ? (
+              <span className="inline-flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-3 py-1 rounded-full border border-amber-200 dark:border-amber-800">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                데모 모드 (Mock) — API 키 없이 체험 가능
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
+                <CheckCircle className="w-3 h-3" />
+                Gemini API 연결됨
+              </span>
+            )}
+          </div>
+          <Button size="sm" variant="secondary" leftIcon={<Settings className="w-3.5 h-3.5" />} onClick={() => navigate('/settings')}>
+            API 키 설정
+          </Button>
         </div>
       </div>
 
@@ -130,7 +175,7 @@ export default function Home() {
             <div><span className="font-medium text-slate-800 dark:text-slate-200">말투:</span> 따뜻한, 진중한</div>
           </div>
         </div>
-        <Button variant="primary" className="mt-4 w-full sm:w-auto" onClick={handleStart}>
+        <Button variant="primary" className="mt-4 w-full sm:w-auto" onClick={handleModeSelect}>
           데모로 바로 시작하기
         </Button>
       </div>
