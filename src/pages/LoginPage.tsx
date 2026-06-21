@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Film, Mail, Lock, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
-import { signIn, signUp } from '../services/auth.service';
+import { signIn, signUp, PENDING_APPROVAL_ERROR } from '../services/auth.service';
 import { useAuth } from '../store/AuthContext';
 import Button from '../components/ui/Button';
 
@@ -19,6 +19,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [signupSent, setSignupSent] = useState(false);
+  const [pendingApproval, setPendingApproval] = useState(false);
 
   useEffect(() => {
     if (!authLoading && user) navigate('/wizard', { replace: true });
@@ -28,6 +29,7 @@ export default function LoginPage() {
     setTab(t);
     setError('');
     setSignupSent(false);
+    setPendingApproval(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -48,6 +50,7 @@ export default function LoginPage() {
     }
 
     setLoading(true);
+    setPendingApproval(false);
     try {
       if (tab === 'login') {
         await signIn(email.trim(), password);
@@ -55,13 +58,17 @@ export default function LoginPage() {
       } else {
         const data = await signUp(email.trim(), password);
         if (data.session) {
-          navigate('/wizard', { replace: true });
+          setPendingApproval(true);
         } else {
           setSignupSent(true);
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
+      if (err instanceof Error && err.message === PENDING_APPROVAL_ERROR) {
+        setPendingApproval(true);
+      } else {
+        setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
+      }
     } finally {
       setLoading(false);
     }
@@ -132,6 +139,14 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Pending approval notice */}
+          {pendingApproval && (
+            <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2.5 text-sm text-amber-700 dark:text-amber-400">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
+              <span>관리자가 아직 승인을 하지 않았습니다. 순차적으로 승인을 하니 조금만 기다려주십시오.</span>
+            </div>
+          )}
+
           {/* Error */}
           {error && (
             <div className="flex items-start gap-2 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl px-3 py-2.5 text-sm text-red-700 dark:text-red-400">
@@ -216,24 +231,26 @@ export default function LoginPage() {
         Gemini API 키는 계정에 암호화되어 저장됩니다
       </p>
 
-      {/* Service notice */}
-      <div className="w-full max-w-sm mt-4 space-y-3">
-        <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl p-4 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-          이 서비스는 조국혁신당 당원을 위한 무료 서비스입니다. 회원 가입을 하신 후에 이메일주소, 성함, 조국혁신당 당원임을 입증할 수 있는 스크린 캡쳐본을{' '}
-          <a href="mailto:ippenae@gmail.com" className="font-semibold text-blue-600 dark:text-blue-400 hover:underline">
-            ippenae@gmail.com
-          </a>
-          으로 보내주시면 승인 후에 사용 가능합니다.
-        </div>
+      {/* Service notice — 회원가입 탭에서만 표시 */}
+      {tab === 'signup' && (
+        <div className="w-full max-w-sm mt-4 space-y-3">
+          <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl p-4 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+            이 서비스는 조국혁신당 당원을 위한 무료 서비스입니다. 회원 가입을 하신 후에 이메일주소, 성함, 조국혁신당 당원임을 입증할 수 있는 스크린 캡쳐본을{' '}
+            <a href="mailto:ippenae@gmail.com" className="font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+              ippenae@gmail.com
+            </a>
+            으로 보내주시면 승인 후에 사용 가능합니다.
+          </div>
 
-        <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-          <p className="font-semibold text-slate-600 dark:text-slate-300 mb-1.5">*** 조국혁신당 당원 입증 방법</p>
-          조국혁신당 홈페이지에 로그인 후 마이페이지에서 당원번호와 이름이 있는 부분을 스크린캡쳐해서 보내주시면 됩니다. 당비 영수증 화면 스크린캡쳐도 가능합니다.
-          <p className="mt-2 text-slate-400 dark:text-slate-500">
-            이는 조국혁신당 당원이 아닌 분들의 무분별한 사용을 사전에 금지하기 위함이오니 너른 양해 부탁드립니다.
-          </p>
+          <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            <p className="font-semibold text-slate-600 dark:text-slate-300 mb-1.5">*** 조국혁신당 당원 입증 방법</p>
+            조국혁신당 홈페이지에 로그인 후 마이페이지에서 당원번호와 이름이 있는 부분을 스크린캡쳐해서 보내주시면 됩니다. 당비 영수증 화면 스크린캡쳐도 가능합니다.
+            <p className="mt-2 text-slate-400 dark:text-slate-500">
+              이는 조국혁신당 당원이 아닌 분들의 무분별한 사용을 사전에 금지하기 위함이오니 너른 양해 부탁드립니다.
+            </p>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

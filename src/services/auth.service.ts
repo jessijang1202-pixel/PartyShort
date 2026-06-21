@@ -1,5 +1,7 @@
 import { supabase } from '../lib/supabase';
 
+export const PENDING_APPROVAL_ERROR = 'PENDING_APPROVAL';
+
 export function translateAuthError(message: string): string {
   const m = message.toLowerCase();
   if (m.includes('invalid login credentials') || m.includes('invalid credentials'))
@@ -20,12 +22,36 @@ export function translateAuthError(message: string): string {
 export async function signUp(email: string, password: string) {
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) throw new Error(translateAuthError(error.message));
+
+  // Create profile with approved: false so admin must approve before access
+  if (data.user && data.session) {
+    await supabase.from('user_profiles').upsert({
+      id: data.user.id,
+      gemini_api_key: '',
+      use_mock_mode: true,
+      approved: false,
+    });
+  }
+
   return data;
 }
 
 export async function signIn(email: string, password: string) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw new Error(translateAuthError(error.message));
+
+  // Check approval status — sign out and block if not yet approved
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('approved')
+    .eq('id', data.user.id)
+    .maybeSingle();
+
+  if (!profile?.approved) {
+    await supabase.auth.signOut();
+    throw new Error(PENDING_APPROVAL_ERROR);
+  }
+
   return data;
 }
 
