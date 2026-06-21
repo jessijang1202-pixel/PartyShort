@@ -215,6 +215,25 @@ export default function LoginPage() {
       <p className="mt-6 text-xs text-slate-500 dark:text-slate-500 text-center">
         Gemini API 키는 계정에 암호화되어 저장됩니다
       </p>
+
+      {/* Service notice */}
+      <div className="w-full max-w-sm mt-4 space-y-3">
+        <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl p-4 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+          이 서비스는 조국혁신당 당원을 위한 무료 서비스입니다. 회원 가입을 하신 후에 이메일주소, 성함, 조국혁신당 당원임을 입증할 수 있는 스크린 캡쳐본을{' '}
+          <a href="mailto:ippenae@gmail.com" className="font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+            ippenae@gmail.com
+          </a>
+          으로 보내주시면 승인 후에 사용 가능합니다.
+        </div>
+
+        <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+          <p className="font-semibold text-slate-600 dark:text-slate-300 mb-1.5">*** 조국혁신당 당원 입증 방법</p>
+          조국혁신당 홈페이지에 로그인 후 마이페이지에서 당원번호와 이름이 있는 부분을 스크린캡쳐해서 보내주시면 됩니다. 당비 영수증 화면 스크린캡쳐도 가능합니다.
+          <p className="mt-2 text-slate-400 dark:text-slate-500">
+            이는 조국혁신당 당원이 아닌 분들의 무분별한 사용을 사전에 금지하기 위함이오니 너른 양해 부탁드립니다.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
