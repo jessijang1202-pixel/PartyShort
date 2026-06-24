@@ -4,21 +4,44 @@ import { useApp } from '../../store/AppContext';
 import Button from '../ui/Button';
 import Alert from '../ui/Alert';
 
-function downloadDataUrl(dataUrl: string, filename: string) {
+function triggerDownload(url: string, filename: string) {
   const a = document.createElement('a');
-  a.href = dataUrl;
+  a.href = url;
   a.download = filename;
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
+}
+
+function downloadDataUrl(dataUrl: string, filename: string) {
+  // Convert base64 data URI → Blob URL for reliable large-file downloads
+  if (dataUrl.startsWith('data:')) {
+    const [meta, b64] = dataUrl.split(',');
+    const mime = meta.split(':')[1].split(';')[0];
+    const bytes = atob(b64);
+    const arr = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+    const blob = new Blob([arr], { type: mime });
+    const blobUrl = URL.createObjectURL(blob);
+    triggerDownload(blobUrl, filename);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+  } else {
+    triggerDownload(dataUrl, filename);
+  }
 }
 
 function downloadText(text: string, filename: string) {
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-  downloadDataUrl(URL.createObjectURL(blob), filename);
+  const url = URL.createObjectURL(blob);
+  triggerDownload(url, filename);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
 function downloadJson(obj: unknown, filename: string) {
   const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
-  downloadDataUrl(URL.createObjectURL(blob), filename);
+  const url = URL.createObjectURL(blob);
+  triggerDownload(url, filename);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
 interface CopyBtnProps { text: string; label: string }
