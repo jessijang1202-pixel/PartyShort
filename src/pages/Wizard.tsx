@@ -13,6 +13,7 @@ import VeoClipStep from '../components/steps/VeoClipStep';
 import SlidesStep from '../components/steps/SlidesStep';
 import SubtitleNarrationStep from '../components/steps/SubtitleNarrationStep';
 import AutoProcessStep from '../components/steps/AutoProcessStep';
+import SimpleUploadStep from '../components/steps/SimpleUploadStep';
 import StoryboardStep from '../components/steps/StoryboardStep';
 import UploadCopyStep from '../components/steps/UploadCopyStep';
 import ExportStep from '../components/steps/ExportStep';
@@ -40,7 +41,7 @@ function getCompletedSteps(currentStep: WizardStep): WizardStep[] {
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 export default function Wizard() {
-  const { session, settings, videoMode, setStep, currentProjectId, setCurrentProjectId, loadProjectSession, resetSession } = useApp();
+  const { session, settings, videoMode, simpleUploads, setStep, currentProjectId, setCurrentProjectId, loadProjectSession, resetSession } = useApp();
   const navigate = useNavigate();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -49,11 +50,19 @@ export default function Wizard() {
   const currentStep = session.currentStep;
   const completed = getCompletedSteps(currentStep);
 
-  // Simple mode: after ideas step, skip 3-7 with auto-process screen
-  const isSimpleAutoMode = videoMode === 'simple'
-    && ['hooks', 'script-split', 'veo-clip', 'slides', 'subtitle-narration'].includes(currentStep);
+  const simpleSteps = ['hooks', 'script-split', 'veo-clip', 'slides', 'subtitle-narration'];
+  const inSimpleRange = videoMode === 'simple' && simpleSteps.includes(currentStep);
 
-  const StepComponent = isSimpleAutoMode ? AutoProcessStep : STEP_COMPONENTS[currentStep];
+  // Show upload screen first if user has media and hasn't uploaded yet
+  const needsSimpleUpload = inSimpleRange
+    && (session.planning?.hasVideos || session.planning?.hasPhotos)
+    && simpleUploads === null;
+
+  const StepComponent = needsSimpleUpload
+    ? SimpleUploadStep
+    : inSimpleRange
+    ? AutoProcessStep
+    : STEP_COMPONENTS[currentStep];
 
   const canSave = !!session.planning;
 

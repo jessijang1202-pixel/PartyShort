@@ -36,6 +36,8 @@ interface AppContextType {
   currentProjectId: string | null;
   videoMode: 'simple' | 'advanced' | null;
   setVideoMode: (mode: 'simple' | 'advanced' | null) => void;
+  simpleUploads: { videoUrl?: string; photoUrls: string[] } | null;
+  setSimpleUploads: (uploads: { videoUrl?: string; photoUrls: string[] } | null) => void;
   setSettings: (s: UserApiSettings) => void;
   toggleDark: () => void;
   setStep: (step: WizardStep) => void;
@@ -85,6 +87,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<AppSession>(initialSession);
   const [settings, setSettingsState] = useState<UserApiSettings>(loadSettings);
   const [videoMode, setVideoMode] = useState<'simple' | 'advanced' | null>(null);
+  const [simpleUploads, setSimpleUploads] = useState<{ videoUrl?: string; photoUrls: string[] } | null>(null);
   const [isDark, setIsDark] = useState<boolean>(() => {
     const d = getInitialDark();
     if (d) document.documentElement.classList.add('dark');
@@ -192,12 +195,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSession(initialSession);
     setCurrentProjectId(null);
     setVideoMode(null);
+    setSimpleUploads(null);
   }, []);
 
   return (
     <AppContext.Provider value={{
       session, settings, isDark, currentProjectId,
       videoMode, setVideoMode,
+      simpleUploads, setSimpleUploads,
       setSettings, toggleDark, setStep,
       updatePlanning, setIdeas, selectIdea,
       setHooks, selectHook, setScriptSplit,

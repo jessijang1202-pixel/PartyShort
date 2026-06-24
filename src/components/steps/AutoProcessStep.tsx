@@ -31,7 +31,7 @@ function delay(ms: number) {
 }
 
 export default function AutoProcessStep() {
-  const { session, settings, setHooks, selectHook, setScriptSplit, setSubtitleNarration, setStep } = useApp();
+  const { session, settings, simpleUploads, setHooks, selectHook, setScriptSplit, setSubtitleNarration, setStep } = useApp();
   const ran = useRef(false);
 
   const [items, setItems] = useState<ProcessItem[]>([
@@ -72,9 +72,22 @@ export default function AutoProcessStep() {
 
       // ── 2. 대본 + 구성 분리 ──────────────────────────────────────
       setStatus(1, 'processing');
-      const split = settings.useMockMode || !settings.geminiApiKey
+      const rawSplit = settings.useMockMode || !settings.geminiApiKey
         ? await mockGenerateScriptSplit()
         : await generateScriptSplit(settings.geminiApiKey, planning, selectedIdea, hooks[0]);
+
+      // Apply uploaded media to the split before saving
+      const split = { ...rawSplit };
+      if (simpleUploads?.videoUrl) {
+        split.veo_core_clip = { ...split.veo_core_clip, videoUrl: simpleUploads.videoUrl, status: 'done' };
+      }
+      if (simpleUploads?.photoUrls && simpleUploads.photoUrls.length > 0) {
+        split.slide_scenes = split.slide_scenes.map((scene, idx) =>
+          simpleUploads.photoUrls[idx]
+            ? { ...scene, imageUrl: simpleUploads.photoUrls[idx], imageStatus: 'done' as const }
+            : scene
+        );
+      }
       setScriptSplit(split);
       setStatus(1, 'done');
 
