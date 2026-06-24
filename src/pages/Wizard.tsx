@@ -145,7 +145,11 @@ export default function Wizard() {
           <WizardSidebar
             currentStep={currentStep}
             completedSteps={completed}
-            onStepClick={(step) => setStep(step)}
+            onStepClick={(step) => {
+              // In simple mode, block navigating back into the auto-processed steps
+              if (videoMode === 'simple' && simpleSteps.includes(step)) return;
+              setStep(step);
+            }}
           />
           <div className="flex-1 min-w-0 max-w-3xl">
             <StepComponent />

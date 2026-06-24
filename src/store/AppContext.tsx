@@ -86,8 +86,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const [session, setSession] = useState<AppSession>(initialSession);
   const [settings, setSettingsState] = useState<UserApiSettings>(loadSettings);
-  const [videoMode, setVideoMode] = useState<'simple' | 'advanced' | null>(null);
+  const [videoMode, setVideoModeState] = useState<'simple' | 'advanced' | null>(() => {
+    try { return sessionStorage.getItem('pss_videoMode') as 'simple' | 'advanced' | null; } catch { return null; }
+  });
   const [simpleUploads, setSimpleUploads] = useState<{ videoUrl?: string; photoUrls: string[] } | null>(null);
+
+  const setVideoMode = useCallback((mode: 'simple' | 'advanced' | null) => {
+    setVideoModeState(mode);
+    try {
+      if (mode) sessionStorage.setItem('pss_videoMode', mode);
+      else sessionStorage.removeItem('pss_videoMode');
+    } catch { /* ignore */ }
+  }, []);
   const [isDark, setIsDark] = useState<boolean>(() => {
     const d = getInitialDark();
     if (d) document.documentElement.classList.add('dark');
@@ -194,7 +204,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const resetSession = useCallback(() => {
     setSession(initialSession);
     setCurrentProjectId(null);
-    setVideoMode(null);
+    setVideoModeState(null);
+    try { sessionStorage.removeItem('pss_videoMode'); } catch { /* ignore */ }
     setSimpleUploads(null);
   }, []);
 
