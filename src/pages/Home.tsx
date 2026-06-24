@@ -28,11 +28,12 @@ const STEPS = [
 
 export default function Home() {
   const navigate = useNavigate();
-  const { settings, resetSession } = useApp();
+  const { settings, resetSession, setVideoMode } = useApp();
   const { user } = useAuth();
 
-  function handleModeSelect() {
+  function handleModeSelect(mode: 'simple' | 'advanced') {
     resetSession();
+    setVideoMode(mode);
     if (user) {
       navigate('/wizard');
     } else {
@@ -64,7 +65,7 @@ export default function Home() {
           {/* 간단 영상 만들기 */}
           <button
             type="button"
-            onClick={handleModeSelect}
+            onClick={() => handleModeSelect('simple')}
             className="group flex flex-col items-center gap-3 p-6 rounded-2xl border-2 border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-100 dark:hover:bg-blue-950/60 transition-all text-left"
           >
             <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
@@ -84,7 +85,7 @@ export default function Home() {
           {/* 고급 영상 만들기 */}
           <button
             type="button"
-            onClick={handleModeSelect}
+            onClick={() => handleModeSelect('advanced')}
             className="group flex flex-col items-center gap-3 p-6 rounded-2xl border-2 border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950/30 hover:border-purple-500 dark:hover:border-purple-500 hover:bg-purple-100 dark:hover:bg-purple-950/60 transition-all text-left"
           >
             <div className="w-12 h-12 rounded-xl bg-purple-600 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
@@ -175,7 +176,7 @@ export default function Home() {
             <div><span className="font-medium text-slate-800 dark:text-slate-200">말투:</span> 따뜻한, 진중한</div>
           </div>
         </div>
-        <Button variant="primary" className="mt-4 w-full sm:w-auto" onClick={handleModeSelect}>
+        <Button variant="primary" className="mt-4 w-full sm:w-auto" onClick={() => handleModeSelect('simple')}>
           데모로 바로 시작하기
         </Button>
       </div>
